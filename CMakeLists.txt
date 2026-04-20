@@ -16,7 +16,7 @@ pico_generate_pio_header(PicoMemcard ${CMAKE_CURRENT_LIST_DIR}/psxSPI.pio)
 pico_generate_pio_header(PicoMemcard ${CMAKE_CURRENT_LIST_DIR}/ws2812.pio)
 
 add_definitions(-DNO_PICO_LED)  # prevent SD SPI library from using LED
-add_subdirectory(no-OS-FatFS-SD-SPI-RPi-Pico/FatFs_SPI PicoMemcard)
+add_subdirectory(deps/no-OS-FatFS-SD-SPI-RPi-Pico/FatFs_SPI PicoMemcard)
 add_subdirectory(poc_examples)
 
 # Example source
@@ -29,11 +29,14 @@ target_sources(PicoMemcard PUBLIC
     ${CMAKE_SOURCE_DIR}/src/msc_handler.c
     ${CMAKE_SOURCE_DIR}/src/sd_config.c
     ${CMAKE_SOURCE_DIR}/src/usb_descriptors.c
+    ${CMAKE_SOURCE_DIR}/deps/littlefs/lfs.c
+    ${CMAKE_SOURCE_DIR}/deps/littlefs/lfs_util.c
 )
 
 # Example include
 target_include_directories(PicoMemcard PUBLIC
     ${CMAKE_SOURCE_DIR}/inc
+    ${CMAKE_SOURCE_DIR}/deps/littlefs
 )
 
 pico_enable_stdio_uart(PicoMemcard 1)	# enable only UART stdio
