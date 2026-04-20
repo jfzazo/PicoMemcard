@@ -77,7 +77,7 @@ int32_t tud_msc_read10_cb(uint8_t lun, uint32_t lba, uint32_t offset, void* buff
 	if(bufsize != BLOCK_SIZE) return -1;			// invalid transfer unit
 	if(offset != 0) return -1;						// cannot read unaligned sectors
 
-	int status = sd_read_blocks(p_sd, (uint8_t*) buffer, (uint64_t) lba, 1);
+	int status = p_sd->read_blocks(p_sd, (uint8_t*) buffer, (uint64_t) lba, 1);
 	if(status != SD_BLOCK_DEVICE_ERROR_NONE) return -1;		// read failed
 
 	return (int32_t) bufsize;
@@ -101,7 +101,7 @@ int32_t tud_msc_write10_cb(uint8_t lun, uint32_t lba, uint32_t offset, uint8_t* 
 	if(bufsize != BLOCK_SIZE) return -1;			// invalid transfer unit
 	if(offset != 0) return -1;						// writes must be sector aligned
 
-	int status = sd_write_blocks(p_sd, buffer, lba, 1);
+	int status = p_sd->write_blocks(p_sd, buffer, lba, 1);
 	if(status != SD_BLOCK_DEVICE_ERROR_NONE) return -1;		// write failed
 
 	return (int32_t) bufsize;

@@ -17,7 +17,7 @@ pico_generate_pio_header(PicoMemcard ${CMAKE_CURRENT_LIST_DIR}/ws2812.pio)
 
 add_definitions(-DNO_PICO_LED)  # prevent SD SPI library from using LED
 add_subdirectory(deps/no-OS-FatFS-SD-SPI-RPi-Pico/FatFs_SPI PicoMemcard)
-add_subdirectory(poc_examples)
+# add_subdirectory(poc_examples)
 
 # Example source
 target_sources(PicoMemcard PUBLIC
@@ -53,6 +53,7 @@ target_link_libraries(
 
   pico_cyw43_arch_none # If you do not need the TCP/IP stack but wish to use the on-board LED on a Pico W
   hardware_adc
+  hardware_structs
 )
 
 pico_add_extra_outputs(PicoMemcard)

@@ -52,7 +52,7 @@ void tud_mount_cb(void) {
 	/* Initialize SD card */
 	sd_card_t *p_sd = sd_get_by_num(0);
 	if (!p_sd) return;
-	sd_init_card(p_sd);
+	p_sd->init(p_sd);
 }
 
 // Invoked when device is unmounted
