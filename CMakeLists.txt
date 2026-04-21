@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.13)
 option(USE_SDCARD "Use SD Card design" OFF)
 option(RP2040ZERO "Use RP2040-zero" ON)
 
+# cmake -DDBG_LEVEL=2 ..
+# Use debugging level (0=No debug; 1=info messages; 2=verbose messages)
+set(DBG_LEVEL 2)
+
 
 set(PICOPLATFORM rp2040)
 if(NOT RP2040ZERO)
@@ -16,8 +20,7 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
 add_executable(PicoMemcard)
-
-
+target_compile_definitions(PicoMemcard PUBLIC DBG_LEVEL=${DBG_LEVEL})
 
 pico_sdk_init()
 
@@ -53,7 +56,7 @@ pico_generate_pio_header(PicoMemcard ${CMAKE_CURRENT_LIST_DIR}/psxSPI.pio)
 pico_generate_pio_header(PicoMemcard ${CMAKE_CURRENT_LIST_DIR}/ws2812.pio)
 
 add_definitions(-DNO_PICO_LED)  # prevent SD SPI library from using LED
-#add_compile_definitions(FF_USE_LABEL=1) # Compile no-OS...Library with f_setlabel
+#add_compile_definitions(FF_USE_LABEL=1) # Compile no-OS-FatFS...Library with f_setlabel
 execute_process(
     COMMAND sed -i
         "s/^\#define FF_USE_LABEL[[:space:]]\\+0/\#define FF_USE_LABEL 1/"
@@ -65,6 +68,7 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/deps/no-OS-FatFS-SD-SPI-RPi-Pico/FatFs_SPI 
 # Example source
 target_sources(PicoMemcard PUBLIC
     ${CMAKE_SOURCE_DIR}/src/led.c
+    ${CMAKE_SOURCE_DIR}/src/debug.c
     ${CMAKE_SOURCE_DIR}/src/main.c
     ${CMAKE_SOURCE_DIR}/src/memcard_manager.c
     ${CMAKE_SOURCE_DIR}/src/memcard_simulator.c
@@ -88,7 +92,8 @@ target_include_directories(PicoMemcard PUBLIC
     ${CMAKE_SOURCE_DIR}/deps/littlefs
 )
 
-pico_enable_stdio_uart(PicoMemcard 1)	# enable only UART stdio
+pico_enable_stdio_usb(PicoMemcard 1)	# enable usb stdio
+pico_enable_stdio_uart(PicoMemcard 0)	# enable UART stdio
 
 target_link_libraries(
   PicoMemcard

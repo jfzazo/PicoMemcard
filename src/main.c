@@ -13,7 +13,7 @@
 #include "led.h"
 /* Global Configuration */
 #include "config.h"
-
+#include "pico/bootrom.h"
 
 bool tud_mount_status = false;
 
@@ -79,27 +79,72 @@ void tud_resume_cb(void) {}
 //--------------------------------------------------------------------+
 // USB CDC
 //--------------------------------------------------------------------+
-void cdc_task(void) {
-	// connected() check for DTR bit
-	// Most but not all terminal client set this when making connection
-	// if ( tud_cdc_connected() )
-	{
-		// connected and there are data available
-		if ( tud_cdc_available() )
-		{
-			// read datas
-			char buf[64];
-			uint32_t count = tud_cdc_read(buf, sizeof(buf));
-			(void) count;
 
-			// Echo back
-			// Note: Skip echo by commenting out write() and write_flush()
-			// for throughput test e.g
-			//    $ dd if=/dev/zero of=/dev/ttyACM0 count=10000
-			tud_cdc_write(buf, count);
-			tud_cdc_write_flush();
-		}
-	}
+#define CMD_BUF_SIZE 64
+
+static char cmd_buf[CMD_BUF_SIZE];
+static uint8_t cmd_len = 0;
+static bool prompt_shown = false;
+
+void show_prompt(void) {
+    if (tud_cdc_connected()) {
+        tud_cdc_write_str("> ");
+        tud_cdc_write_flush();
+        prompt_shown = true;
+    }
+}
+
+void handle_command(const char *cmd) {
+    if (strcmp(cmd, "bootsel") == 0) {
+        DBG_VERBOSE("\nRebooting to BOOTSEL...\n");
+        sleep_ms(100); // allow flush
+        reset_usb_boot(0, 0);
+    }
+    else if (strcmp(cmd, "help") == 0) {
+        DBG_VERBOSE("\nCommands:\n");
+        DBG_VERBOSE("  help     - show this message\n");
+        DBG_VERBOSE("  bootsel  - reboot to BOOTSEL\n");
+    }
+    else if (strlen(cmd) == 0) {
+        // ignore empty
+    }
+    else {
+        DBG_VERBOSE("\nUnknown: %s\n", cmd);
+    }
+}
+
+void cdc_task(void) {
+    while (tud_cdc_available()) {
+        char c;
+        tud_cdc_read(&c, 1);
+
+        // ENTER
+        if (c == '\r' || c == '\n') {
+            tud_cdc_write_str("\r\n");
+
+            cmd_buf[cmd_len] = '\0';
+            handle_command(cmd_buf);
+
+            cmd_len = 0;
+            prompt_shown = false;
+        }
+        // BACKSPACE
+        else if (c == 0x7F || c == '\b') {
+            if (cmd_len > 0) {
+                cmd_len--;
+                tud_cdc_write_str("\b \b"); // erase char on terminal
+            }
+        }
+        // NORMAL CHAR
+        else if (cmd_len < CMD_BUF_SIZE - 1) {
+            cmd_buf[cmd_len++] = c;
+            tud_cdc_write(&c, 1); // echo
+        }
+    }
+
+    if (!prompt_shown && tud_cdc_connected()) {
+        show_prompt();
+    }
 }
 
 // Invoked when cdc when line state changed e.g connected/disconnected
@@ -108,7 +153,7 @@ void tud_cdc_line_state_cb(uint8_t itf, bool dtr, bool rts) {
 	(void) rts;
 }
 
-// Invoked when CDC interface received data from host
+
 void tud_cdc_rx_cb(uint8_t itf) {
-	(void) itf;
+    (void) itf;
 }
