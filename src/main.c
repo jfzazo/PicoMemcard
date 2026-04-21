@@ -1,7 +1,7 @@
 #include "pico/stdio.h"
 #include "pico/stdlib.h"
-/* SD Card */
-#include "sd_config.h"
+/* File system */
+#include "fs/fs.h"
 /* Time and Timestamps */
 #include "pico/time.h"
 /* TinyUSB */
@@ -24,6 +24,9 @@ int main(void) {
 	stdio_init_all();
 	led_init();
 	
+
+	if(fs_manager.init) fs_manager.init(0);
+
 	/* Pico connected to PC, initialize USB transfer mode */
 	board_init();
 	tusb_init();
@@ -48,15 +51,20 @@ int main(void) {
 
 // Invoked when device is mounted
 void tud_mount_cb(void) {
-	tud_mount_status = true;
-	/* Initialize SD card */
-	sd_card_t *p_sd = sd_get_by_num(0);
-	if (!p_sd) return;
-	p_sd->init(p_sd);
+	/* Initialize SD card/QSPI */
+	if(fs_manager.mount) {
+		tud_mount_status = true;
+		fs_manager.mount(0);
+	}
 }
 
 // Invoked when device is unmounted
-void tud_umount_cb(void) {}
+void tud_umount_cb(void) {
+	if(fs_manager.umount) {
+		fs_manager.umount(0);
+	}
+	tud_mount_status = false;
+}
 
 // Invoked when usb bus is suspended
 // remote_wakeup_en : if host allow us  to perform remote wakeup

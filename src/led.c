@@ -26,7 +26,7 @@ void ws2812_put_pixel(uint32_t pixel_grb) {
 void ws2812_put_rgb(uint8_t red, uint8_t green, uint8_t blue) {
 	#ifdef INVERT_RED_GREEN
 	uint32_t mask = (red << 16) | (green << 8) | (blue << 0);
-	#elif
+	#else
 	uint32_t mask = (green << 16) | (red << 8) | (blue << 0);
 	#endif
 	ws2812_put_pixel(mask);

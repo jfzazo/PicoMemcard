@@ -2,11 +2,11 @@
 ;	Interfaces with the modified SPI protocol used by
 ;	PSX to communicate with controller/memory cards
 
-.define PUBLIC PIN_DAT 9
-.define PUBLIC PIN_CMD 10
-.define PUBLIC PIN_SEL 11
-.define PUBLIC PIN_CLK 12
-.define PUBLIC PIN_ACK 13
+.define PUBLIC PIN_DAT @PIN_DAT@
+.define PUBLIC PIN_CMD @PIN_CMD@
+.define PUBLIC PIN_SEL @PIN_SEL@
+.define PUBLIC PIN_CLK @PIN_CLK@
+.define PUBLIC PIN_ACK @PIN_ACK@
 
 .program cmd_reader
 ; Input pins mapping:

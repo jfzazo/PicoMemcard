@@ -2,7 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include "sd_config.h"
+#include "fs/sd/sd_config.h"
+#include "fs/fs.h"
 #include "memory_card.h"
 
 /* extension for memcard files */
@@ -10,6 +11,10 @@ static const char memcard_file_ext[] = ".MCR";
 
 /* filename to store previously loaded memcard index */
 static const char memcard_lastmemcardindex_filename[] = "LastMemcardIndex.dat";
+
+size_t valid_images = 0;
+size_t cimage = 0;
+uint8_t* image_names;
 
 bool is_name_valid(uint8_t* filename) {
 	if(!filename)
@@ -26,40 +31,42 @@ bool is_name_valid(uint8_t* filename) {
 	return true;
 }
 
-bool is_image_valid(uint8_t* filename) {
+bool is_image_valid(uint8_t* filename, uint32_t fsize) {
 	if(!filename)
 		return false;
 	filename = strupr(filename);	// convert to upper case
 	if(!is_name_valid(filename))
 		return false;
-	FILINFO f_info;
-	FRESULT f_res = f_stat(filename, &f_info);
-	if(f_res != FR_OK)
-		return false;
-	if(f_info.fsize != MC_SIZE)	// check that memory card image has correct size
+	
+	if(fsize != MC_SIZE)	// check that memory card image has correct size
 		return false;
 	return true;
 }
 
+
+void count_valid_images(uint8_t* filename, uint32_t fsize) {
+	if(is_image_valid(filename, fsize)) {
+		valid_images++;
+	}
+}
+
+void set_images_names(uint8_t* filename, uint32_t fsize) {
+	if(is_image_valid(filename, fsize)) {
+		strcpy(&image_names[(MAX_MC_FILENAME_LEN + 1) * cimage], filename);
+		cimage++;
+	}
+}
+
 uint32_t update_prev_loaded_memcard_index(uint32_t index) {
 	/* update the previously loaded memcard index stored on the SD card */
-	uint32_t retVal = MM_OK;
-	FIL data_file;
-	uint32_t buff_size = 100;
-	FRESULT res = f_open(&data_file, memcard_lastmemcardindex_filename, FA_CREATE_ALWAYS | FA_WRITE);
-	if (res == FR_OK) {
-		/* int to string */
-		char str_index[buff_size];
-		int index_len = sprintf(str_index, "%d", index);
+	uint32_t retVal = MM_FILE_WRITE_ERR;
+	uint32_t buff_size = 100, bytes_written;
+	char str_index[buff_size];
+	int index_len = sprintf(str_index, "%d", index);
 
-		/* overwrite the contents with new index */
-		UINT bytes_written;
-		f_write(&data_file, str_index, index_len, &bytes_written);
-		if (bytes_written < index_len) {
-			/* error writing to file. disk full? */
-			retVal = MM_FILE_WRITE_ERR;
-		}
-		f_close(&data_file);
+	uint32_t status = fs_manager.write(str_index, index_len, memcard_lastmemcardindex_filename, &bytes_written);	
+	if(status == FR_OK && bytes_written >= index_len) {
+		retVal == MM_OK;
 	}
 
 	return retVal;
@@ -68,26 +75,14 @@ uint32_t update_prev_loaded_memcard_index(uint32_t index) {
 bool memcard_manager_exist(uint8_t* filename) {
 	if(!filename)
 		return false;
-	return is_image_valid(filename);
+	return is_image_valid(filename, MC_SIZE);
 }
 
 uint32_t memcard_manager_count() {
-	FRESULT res;
-	DIR root;
-	FILINFO f_info;
-	res = f_opendir(&root, "");	// open root directory
-	uint32_t count = 0;
-	if(res == FR_OK) {
-		while(true) {
-			res = f_readdir(&root, &f_info);
-			if(res != FR_OK || f_info.fname[0] == 0) break;
-			if(!(f_info.fattrib & AM_DIR)) {	// not a directory
-				if(is_image_valid(f_info.fname))
-					++count;
-			}
-		}
-	}
-	return count;
+	valid_images = 0;
+	fs_manager.dir_read(count_valid_images);
+
+	return valid_images;
 }
 
 uint32_t memcard_manager_get(uint32_t index, uint8_t* out_filename) {
@@ -98,27 +93,13 @@ uint32_t memcard_manager_get(uint32_t index, uint8_t* out_filename) {
 	uint32_t count = memcard_manager_count();
 	if(index >= count)
 		return MM_INDEX_OUT_OF_BOUNDS;
-	uint8_t* image_names = malloc(((MAX_MC_FILENAME_LEN + 1) * count));	// allocate space for image names
+	image_names = malloc(((MAX_MC_FILENAME_LEN + 1) * count));	// allocate space for image names
 	if(!image_names)
 		return MM_ALLOC_FAIL; // malloc failed
-	/* retrive images names */
-	FRESULT res;
-	DIR root;
-	FILINFO f_info;
-	res = f_opendir(&root, "");	// open root directory
-	uint32_t i = 0;
-	if(res == FR_OK) {
-		while(true) {
-			res = f_readdir(&root, &f_info);
-			if(res != FR_OK || f_info.fname[0] == 0) break;
-			if(!(f_info.fattrib & AM_DIR)) {	// not a directory
-				if(is_image_valid(f_info.fname)) {
-					strcpy(&image_names[(MAX_MC_FILENAME_LEN + 1) * i], f_info.fname);
-					++i;
-				}
-			}
-		}
-	}
+	/* retrieve images names */
+	cimage = 0;
+	fs_manager.dir_read(set_images_names);
+
 	/* sort names alphabetically */
 	qsort(image_names, count, (MAX_MC_FILENAME_LEN + 1), (__compar_fn_t) strcmp);
 	strcpy(out_filename, &image_names[(MAX_MC_FILENAME_LEN + 1) * index]);
@@ -127,18 +108,15 @@ uint32_t memcard_manager_get(uint32_t index, uint8_t* out_filename) {
 }
 
 uint32_t memcard_manager_get_prev_loaded_memcard_index() {
-	/* read which memcard to load from last session from SD card */
+	/* read which memcard to load from last session from FS */
+	uint32_t buff_size = 100, size;
+	char line[buff_size];
 	uint32_t index = 0;
-	FIL data_file;
-	uint32_t buff_size = 100;
-	FRESULT res = f_open(&data_file, memcard_lastmemcardindex_filename, FA_OPEN_EXISTING | FA_READ);
-	if (res == FR_OK) {
-		char line[buff_size];
-		if (f_gets(line, sizeof(line), &data_file)) {
-			/* string to int (base 10) */
-			index = (uint32_t)strtol(line, (char**)NULL, 10);
-		}
-		f_close(&data_file);
+
+	uint32_t status = fs_manager.read(line, &size, memcard_lastmemcardindex_filename, buff_size);			
+	if(status == FR_OK) {
+		/* string to int (base 10) */
+		index = (uint32_t)strtol(line, (char**)NULL, 10);
 	}
 	return index;
 }
@@ -151,24 +129,9 @@ uint32_t memcard_manager_get_next(uint8_t* filename, uint8_t* out_nextfile) {
 	uint8_t* image_names = malloc(buff_size);	// allocate space for image names
 	if(!image_names)
 		return MM_ALLOC_FAIL; // malloc failed
-	/* retrive images names */
-	FRESULT res;
-	DIR root;
-	FILINFO f_info;
-	res = f_opendir(&root, "");	// open root directory
-	uint32_t i = 0;
-	if(res == FR_OK) {
-		while(true) {
-			res = f_readdir(&root, &f_info);
-			if(res != FR_OK || f_info.fname[0] == 0) break;
-			if(!(f_info.fattrib & AM_DIR)) {	// not a directory
-				if(is_image_valid(f_info.fname)) {
-					strcpy(&image_names[(MAX_MC_FILENAME_LEN + 1) * i], f_info.fname);
-					++i;
-				}
-			}
-		}
-	}
+	/* retrieve images names */
+	cimage = 0;
+	fs_manager.dir_read(set_images_names);
 	/* sort names alphabetically */
 	qsort(image_names, count, (MAX_MC_FILENAME_LEN + 1), (__compar_fn_t) strcmp);
 	/* find current and return following one */
@@ -201,24 +164,10 @@ uint32_t memcard_manager_get_prev(uint8_t* filename, uint8_t* out_prevfile) {
 	uint8_t* image_names = malloc(buff_size);	// allocate space for image names
 	if(!image_names)
 		return MM_ALLOC_FAIL; // malloc failed
-	/* retrive images names */
-	FRESULT res;
-	DIR root;
-	FILINFO f_info;
-	res = f_opendir(&root, "");	// open root directory
-	uint32_t i = 0;
-	if(res == FR_OK) {
-		while(true) {
-			res = f_readdir(&root, &f_info);
-			if(res != FR_OK || f_info.fname[0] == 0) break;
-			if(!(f_info.fattrib & AM_DIR)) {	// not a directory
-				if(is_image_valid(f_info.fname)) {
-					strcpy(&image_names[(MAX_MC_FILENAME_LEN + 1) * i], f_info.fname);
-					++i;
-				}
-			}
-		}
-	}
+	/* retrieve images names */
+	cimage = 0;
+	fs_manager.dir_read(set_images_names);
+
 	/* sort names alphabetically */
 	qsort(image_names, count, (MAX_MC_FILENAME_LEN + 1), (__compar_fn_t) strcmp);
 	/* find current and return prior one */

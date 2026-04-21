@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "config.h"
 #include "ff.h"
+#include "fs/fs.h"
 #include "pico/stdlib.h"
 
 uint32_t memory_card_init(memory_card_t* mc) {
@@ -15,28 +16,22 @@ uint32_t memory_card_init(memory_card_t* mc) {
 }
 
 uint32_t memory_card_import(memory_card_t* mc, uint8_t* file_name) {
-	uint32_t status = MC_OK;
-	FIL memcard;
-
+	uint32_t status;
+	uint32_t size;
 	if(mc) {
 		mc->flag_byte = MC_FLAG_BYTE_DEF;
-		if(FR_OK == f_open(&memcard, file_name, FA_READ)) {
-			UINT bytes_read;
-			if(FR_OK == f_read(&memcard, mc->data, MC_SIZE, &bytes_read)) {
-				if(MC_SIZE != bytes_read) {
-					status = MC_FILE_READ_ERR;
-				}
-			} else {
-				status = MC_FILE_SIZE_ERR;
+		status = fs_manager.read(mc->data, &size, file_name, MC_SIZE);
+				
+		if(status == FR_OK) {
+			if(size != MC_SIZE) {
+				status = MC_FILE_READ_ERR;
 			}
-			f_close(&memcard);
 		} else {
-			status = MC_FILE_OPEN_ERR;
+			status = MC_FILE_SIZE_ERR;
 		}
 	} else {
 		status = MC_NO_INIT;
 	}
-
 	return status;
 }
 
@@ -69,19 +64,14 @@ void memory_card_reset_seen_flag(memory_card_t* mc) {
 uint32_t memory_card_sync_sector(memory_card_t* mc, sector_t sector, uint8_t* file_name) {
 	uint32_t status = MC_OK;
 	FIL memcard;
-
-	if(FR_OK == f_open(&memcard, file_name, FA_READ | FA_WRITE)) {
-		UINT bytes_written;
-		f_lseek(&memcard, (sector * MC_SEC_SIZE));
-		if(FR_OK == f_write(&memcard, &mc->data[sector * MC_SEC_SIZE], MC_SEC_SIZE, &bytes_written)) {
-			if(MC_SEC_SIZE != bytes_written) {
-				status = MC_FILE_SIZE_ERR;
-			}
+	uint32_t bytes_written;
+	status = fs_manager.write_at(&mc->data[sector * MC_SEC_SIZE], MC_SEC_SIZE, (sector * MC_SEC_SIZE), file_name, &bytes_written);
+	if(FR_OK == status) {
+		if(MC_SEC_SIZE != bytes_written) {
+			status = MC_FILE_SIZE_ERR;
 		} else {
 			status = MC_FILE_WRITE_ERR;
 		}
-
-		f_close(&memcard);
 	} else {
 		status = MC_FILE_OPEN_ERR;
 	}

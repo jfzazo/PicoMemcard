@@ -9,9 +9,9 @@
 #include "hardware/structs/iobank0.h" // iobank0_hw
 #include "psxSPI.pio.h"
 #include "memory_card.h"
-#include "sd_config.h"
+#include "fs/fs.h"
+#include "ff.h"
 #include "memcard_manager.h"
-#include "config.h"
 #include "pad.h"
 #include "led.h"
 
@@ -310,13 +310,13 @@ _Noreturn int simulate_memory_card() {
 	uint8_t mc_file_name[MAX_MC_FILENAME_LEN + 1];	// +1 for null terminator character
 
 	/* Mount and test SD card filesystem */
-	sd_card_t *p_sd = sd_get_by_num(0);
-	if(FR_OK != f_mount(&p_sd->fatfs, "", 1)) {
+	uint32_t status = fs_manager.mount(0);
+	if(FR_OK != status) {
 		while(true)
 			led_blink_error(1);
 	}
 
-    uint32_t status = memory_card_init(&mc);
+    status = memory_card_init(&mc);
 	if(status != MC_OK) {
 		while(true) {
 			led_blink_error(status);
