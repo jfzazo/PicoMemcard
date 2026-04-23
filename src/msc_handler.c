@@ -30,7 +30,7 @@ bool tud_msc_test_unit_ready_cb(uint8_t lun)
 	sd_card_t* p_sd = (sd_card_t*) fs_manager.get_by_num(lun);
 	if (!p_sd) return false;
 
-	if(p_sd->m_Status != 0) {
+	if(!fs_manager.ready(p_sd)) {
 		// Additional Sense 3A-00 is NOT_FOUND
 		tud_msc_set_sense(lun, SCSI_SENSE_NOT_READY, 0x3a, 0x00);
 		return false;
@@ -58,14 +58,7 @@ bool tud_msc_start_stop_cb(uint8_t lun, uint8_t power_condition, bool start, boo
 {
 	(void) power_condition;
 
-	if ( load_eject )
-	{
-		if(start) {
-			return true;
-		}
-	}
-
-	return true;
+	return fs_manager.startstop(start, load_eject);
 }
 
 /* callback invoked when received READ10 command */
@@ -74,14 +67,12 @@ int32_t tud_msc_read10_cb(uint8_t lun, uint32_t lba, uint32_t offset, void* buff
 	sd_card_t* p_sd = (sd_card_t*) fs_manager.get_by_num(lun);
 	if (!p_sd) return -1;							// not valid drive
 
-	if(lba < 0 || lba >= fs_manager.get_sectors(lun)) return -1;	// invalid sector
 	if(bufsize != fs_manager.get_block_size(lun)) return -1;			// invalid transfer unit
+	if(lba < 0 || lba >= fs_manager.get_sectors(lun)) return -1;	// invalid sector
 	if(offset != 0) return -1;						// cannot read unaligned sectors
 
-	int status = p_sd->read_blocks(p_sd, (uint8_t*) buffer, (uint64_t) lba, 1);
-	if(status != SD_BLOCK_DEVICE_ERROR_NONE) return -1;		// read failed
-
-	return (int32_t) bufsize;
+	int status = fs_manager.read_block(p_sd, (uint8_t*) buffer, (uint64_t) lba, 1);
+	return status ? -1 : bufsize;		// read failed?
 }
 
 bool tud_msc_is_writable_cb (uint8_t lun)
@@ -102,10 +93,8 @@ int32_t tud_msc_write10_cb(uint8_t lun, uint32_t lba, uint32_t offset, uint8_t* 
 	if(bufsize != fs_manager.get_block_size(lun)) return -1;			// invalid transfer unit
 	if(offset != 0) return -1;						// writes must be sector aligned
 
-	int status = p_sd->write_blocks(p_sd, buffer, lba, 1);
-	if(status != SD_BLOCK_DEVICE_ERROR_NONE) return -1;		// write failed
-
-	return (int32_t) bufsize;
+	int status = fs_manager.write_block(p_sd, (uint8_t*) buffer, (uint64_t) lba, 1);
+	return status ? -1 : bufsize;		// write failed?
 }
 
 /*

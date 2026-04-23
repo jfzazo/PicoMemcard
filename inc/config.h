@@ -3,6 +3,10 @@
 
 #include "debug.h"
 
+/* Alloc a giant block of 180KB */
+extern uint8_t ram_disk[180 * 1024] __attribute__((section(".ram")));
+
+
 /* Global configuration options for PicoMemcard */
 #define TUD_MOUNT_TIMEOUT	3000			// max time (in ms) before giving up on MSC mode (USB) and starting memcard simulation
 #define MSC_WRITE_SYNC_TIMEOUT 1 * 1000		// time (in ms) expired since last MSC write before exporting RAM disk into LFS

@@ -16,6 +16,17 @@ uint32_t sd_mount(uint8_t num) {
 	return f_mount(&p_sd->fatfs, "", 1);
 }
 
+bool sd_startstop(bool start, bool load_eject) {
+	return load_eject && start;
+}
+
+
+bool sd_ready(void *dev) {
+	sd_card_t *p_sd = (sd_card_t *)dev;
+	if (!p_sd) return false;
+
+	return p_sd->m_Status == 0;
+}
 
 void* sd_ext_get_by_num(uint8_t lun) {
     return (void *)sd_get_by_num(lun);
@@ -55,6 +66,16 @@ uint32_t sd_read(uint8_t* data, uint32_t *size, uint8_t* file_name, uint32_t max
 }
 
 
+uint32_t sd_read_block(void *dev, uint8_t* buff, uint32_t sector, uint32_t count) {
+	sd_card_t* p_sd = (sd_card_t*) dev;
+	if (!p_sd) return -1;	
+	
+	int status = p_sd->read_blocks(p_sd, (uint8_t*) buff, (uint64_t) sector, count);
+	if(status != SD_BLOCK_DEVICE_ERROR_NONE) return -1;		// read failed
+
+	return 0;
+}
+
 uint32_t sd_write(uint8_t* data, uint32_t size, uint8_t* file_name, uint32_t *written) {
 	return sd_write_at(data, size, 0, file_name, written);
 }
@@ -77,6 +98,15 @@ uint32_t sd_write_at(uint8_t* data, uint32_t size, uint32_t offset, uint8_t* fil
 	return status;
 }
 
+uint32_t sd_write_block(void *dev, uint8_t* buff, uint32_t sector, uint32_t count) {
+	sd_card_t* p_sd = (sd_card_t*) dev;
+	if (!p_sd) return -1;	
+	
+	int status = p_sd->write_blocks(p_sd, buff, sector, count);
+	if(status != SD_BLOCK_DEVICE_ERROR_NONE) return -1;		// write failed
+
+	return 0;
+}
 
 void sd_dir_read(void (*callback)(unsigned char *filename, uint32_t size)) {
 	FRESULT res;

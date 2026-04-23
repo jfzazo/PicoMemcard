@@ -192,21 +192,22 @@ uint32_t memcard_manager_get_prev(uint8_t* filename, uint8_t* out_prevfile) {
 		return MM_NO_ENTRY;
 }
 
+// TODO: Adaptar. Esto solo funciona para FATFs
 uint32_t memcard_manager_create(uint8_t* out_filename) {
 	if(!out_filename)
 		return MM_BAD_PARAM;
 
-  uint8_t name[MAX_MC_FILENAME_LEN + 1];
-  FIL memcard_image;
+	uint8_t name[MAX_MC_FILENAME_LEN + 1];
+	FIL memcard_image;
 
-  uint8_t memcard_n = 0;
-  FRESULT f_res;
-  do {
-    snprintf(name, MAX_MC_FILENAME_LEN + 1, "%d.MCR", memcard_n++); // Set name to %d.MCR
-    f_res = f_open(&memcard_image, name, FA_CREATE_NEW | FA_WRITE); // Open new file for writing
-  } while (f_res == FR_EXIST); // Repeat if file exists.
+	uint8_t memcard_n = 0;
+	FRESULT f_res;
+	do {
+		snprintf(name, MAX_MC_FILENAME_LEN + 1, "%d.MCR", memcard_n++); // Set name to %d.MCR
+		f_res = f_open(&memcard_image, name, FA_CREATE_NEW | FA_WRITE); // Open new file for writing
+	} while (f_res == FR_EXIST); // Repeat if file exists.
 
-  strcpy(out_filename, name); // We have a valid name, copy it to out_filename
+	strcpy(out_filename, name); // We have a valid name, copy it to out_filename
 
 	if(f_res == FR_OK) {
 		UINT bytes_written = 0;

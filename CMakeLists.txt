@@ -56,11 +56,10 @@ pico_generate_pio_header(PicoMemcard ${CMAKE_CURRENT_LIST_DIR}/psxSPI.pio)
 pico_generate_pio_header(PicoMemcard ${CMAKE_CURRENT_LIST_DIR}/ws2812.pio)
 
 add_definitions(-DNO_PICO_LED)  # prevent SD SPI library from using LED
-#add_compile_definitions(FF_USE_LABEL=1) # Compile no-OS-FatFS...Library with f_setlabel
-execute_process(
-    COMMAND sed -i
-        "s/^\#define FF_USE_LABEL[[:space:]]\\+0/\#define FF_USE_LABEL 1/"
-        ${CMAKE_SOURCE_DIR}/deps/no-OS-FatFS-SD-SPI-RPi-Pico/FatFs_SPI/ff15/source/ffconf.h
+
+file(COPY
+    ${CMAKE_SOURCE_DIR}/deps/overlay/
+    DESTINATION ${CMAKE_SOURCE_DIR}/deps/
 )
 add_subdirectory(${CMAKE_SOURCE_DIR}/deps/no-OS-FatFS-SD-SPI-RPi-Pico/FatFs_SPI PicoMemcard)
 # add_subdirectory(poc_examples)

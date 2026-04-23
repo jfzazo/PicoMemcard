@@ -2,6 +2,7 @@
 #include "pico/stdlib.h"
 /* File system */
 #include "fs/fs.h"
+#include "fs/flash/flash_config.h"
 /* Time and Timestamps */
 #include "pico/time.h"
 /* TinyUSB */
@@ -24,12 +25,11 @@ int main(void) {
 	stdio_init_all();
 	led_init();
 	
-
-	if(fs_manager.init) fs_manager.init(0);
-
 	/* Pico connected to PC, initialize USB transfer mode */
 	board_init();
 	tusb_init();
+
+	if(fs_manager.init) fs_manager.init(0);
 
 	while(true) {
 		tud_task(); // tinyusb device task
@@ -51,7 +51,7 @@ int main(void) {
 
 // Invoked when device is mounted
 void tud_mount_cb(void) {
-	/* Initialize SD card/QSPI */
+	/* Initialize SD card/flash */
 	if(fs_manager.mount) {
 		tud_mount_status = true;
 		fs_manager.mount(0);
@@ -94,22 +94,37 @@ void show_prompt(void) {
     }
 }
 
+
+void print_files(uint8_t* filename, uint32_t fsize) {
+	DBG_INFO("  %s (%dB)", filename, fsize);
+}
+
 void handle_command(const char *cmd) {
     if (strcmp(cmd, "bootsel") == 0) {
-        DBG_VERBOSE("\nRebooting to BOOTSEL...\n");
+        DBG_INFO("\nRebooting to BOOTSEL...");
         sleep_ms(100); // allow flush
         reset_usb_boot(0, 0);
-    }
-    else if (strcmp(cmd, "help") == 0) {
-        DBG_VERBOSE("\nCommands:\n");
-        DBG_VERBOSE("  help     - show this message\n");
-        DBG_VERBOSE("  bootsel  - reboot to BOOTSEL\n");
-    }
-    else if (strlen(cmd) == 0) {
+    } else if (strcmp(cmd, "ls") == 0) {
+        // DBG_INFO("%p", fs_manager.init);
+        // if(fs_manager.init) fs_manager.init(0);  - OK
+	    fs_manager.dir_read(print_files);
+    } else if (strcmp(cmd, "mount") == 0) {
+        tud_mount_cb();
+    } else if (strcmp(cmd, "umount") == 0) {
+        tud_umount_cb();
+    } else if (strcmp(cmd, "format") == 0) {
+        flash_format();
+    } else if (strcmp(cmd, "help") == 0) {
+        DBG_INFO("\nCommands:");
+        DBG_INFO("  help     - show this message");
+        DBG_INFO("  bootsel  - reboot to BOOTSEL");
+        DBG_INFO("  ls       - list files in the filesystem");
+        DBG_INFO("  mount    - mount the FAT32 filesystem");
+        DBG_INFO("  umount   - umount the FAT32 filesystem");
+    } else if (strlen(cmd) == 0) {
         // ignore empty
-    }
-    else {
-        DBG_VERBOSE("\nUnknown: %s\n", cmd);
+    } else {
+        DBG_INFO("\nUnknown: %s", cmd);
     }
 }
 
@@ -120,7 +135,7 @@ void cdc_task(void) {
 
         // ENTER
         if (c == '\r' || c == '\n') {
-            tud_cdc_write_str("\r\n");
+            tud_cdc_write_str("\r");
 
             cmd_buf[cmd_len] = '\0';
             handle_command(cmd_buf);
