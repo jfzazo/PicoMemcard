@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdlib.h>
 #include "memcard_simulator.h"
 #include "stdio.h"
 #include "pico/multicore.h"
@@ -213,13 +214,16 @@ void process_pad_cmd() {    /* during pad interaction never call SEND() only int
     uint16_t sw_status = RECV_DAT();
     sw_status |= RECV_DAT() << 8;
     switch(sw_status) {
-        case START & SELECT & UP:
+        case L1 & L2 & R1 & R2 & UP:
+        case L1 & L2 & R1 & R2 & RIGHT:
             request_next_mc = true;
             break;
+        case L1 & L2 & R1 & R2 & DOWN:
+        case L1 & L2 & R1 & R2 & LEFT:
         case START & SELECT & DOWN:
             request_prev_mc = true;
             break;
-        case START & SELECT & TRIANGLE:
+        case L1 & L2 & R1 & R2 & TRIANGLE:
             request_new_mc = true;
             break;
         default:
@@ -304,6 +308,20 @@ void queue_sync_step(queue_t* queue, uint8_t* mc_file_name) {
         led_blink_error(status);
 }
 
+static int set_mc_colour(char *filename) {
+	int	index = (int)strtol(filename, (char**)NULL, 10) % NCOLORS;
+    rgb_t c;
+    
+    switch(index) {
+        case 1: c = COLOR_CYAN; break;
+        case 2: c = COLOR_BLUE; break;
+        case 3: c = COLOR_YELLOW; break;
+        case 4: c = COLOR_MAGENTA; break;
+        default: c = COLOR_GREEN; break;
+    }
+    set_led_color(&c);
+}
+
 _Noreturn int simulate_memory_card() {
 	mutex_init(&write_transaction);
 	queue_init(&mc_sector_sync_queue, sizeof(sector_t), MC_SEC_COUNT);	// enough space to do complete MC copy
@@ -340,6 +358,7 @@ _Noreturn int simulate_memory_card() {
 			sleep_ms(2000);
 		}
 	}
+    set_mc_colour(mc_file_name);
 
     printf("Initializing PIO...");
     init_pio();
@@ -401,6 +420,7 @@ _Noreturn int simulate_memory_card() {
                     request_next_mc = false;
                     request_prev_mc = false;
                     mutex_exit(&write_transaction);
+                    set_mc_colour(mc_file_name);
 				}
 			}
 		} else if(request_new_mc) {
@@ -419,6 +439,7 @@ _Noreturn int simulate_memory_card() {
                     status = memory_card_import(&mc, mc_file_name);	// switch to newly created mc image
                     if(status != MC_OK)
                         led_blink_error(status);
+                    set_mc_colour(mc_file_name);
                 } else
                     led_blink_error(status);
                 simulate_mc_reconnect();

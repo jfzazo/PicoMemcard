@@ -10,6 +10,8 @@
 #include "tusb.h"
 /* Memcard Simulation */
 #include "memcard_simulator.h"
+#include "memcard_manager.h"
+#include "memory_card.h"
 /* LED Control */
 #include "led.h"
 /* Global Configuration */
@@ -114,6 +116,17 @@ void handle_command(const char *cmd) {
         tud_umount_cb();
     } else if (strcmp(cmd, "format") == 0) {
         flash_format();
+    } else if (strcmp(cmd, "mc") == 0) {
+        uint8_t mc_file_name[MAX_MC_FILENAME_LEN + 1];
+        memory_card_t mc;
+        int status;
+        status = memory_card_init(&mc);
+        status = memcard_manager_get_initial(mc_file_name);
+        DBG_INFO("memcard_manager_get_initial: %s (status=%d)", mc_file_name, status);
+	    status = memory_card_import(&mc, mc_file_name);
+        DBG_INFO("memory_card_import (status=%d)", status);
+    } else if (strcmp(cmd, "sim") == 0) {
+        simulate_memory_card();
     } else if (strcmp(cmd, "help") == 0) {
         DBG_INFO("\nCommands:");
         DBG_INFO("  help     - show this message");

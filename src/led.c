@@ -49,6 +49,13 @@ void led_init() {
 	#endif
 }
 
+static rgb_t cur_color = COLOR_GREEN;
+void set_led_color(rgb_t *color) {
+	cur_color.r = color->r;
+	cur_color.g = color->g;
+	cur_color.b = color->b;
+}
+
 void led_output_sync_status(bool out_of_sync) {
 	#ifdef PICO
 	set_led(PICO_LED_PIN, !out_of_sync);
@@ -58,7 +65,7 @@ void led_output_sync_status(bool out_of_sync) {
 		ws2812_put_rgb(255, 0, 0);
 		sleep_ms(25);
 	} else {
-		ws2812_put_rgb(0, 255, 0);
+		ws2812_put_rgb(cur_color.r, cur_color.g, cur_color.b);
 	}
 	#endif
 }

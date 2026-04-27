@@ -9,9 +9,6 @@ uint32_t memory_card_init(memory_card_t* mc) {
 	if(!mc)
 		return MC_NO_INIT;
 	mc->flag_byte = MC_FLAG_BYTE_DEF;
-	// mc->data = (uint8_t*) malloc(sizeof(uint8_t) * MC_SIZE);
-	// if(!mc->data)
-	// 	return MC_NO_INIT;	// malloc failed
 	mc->data = ram_disk; // Avoid to allocate a big region with malloc. Use a static buffer instead
 	return MC_OK;
 }

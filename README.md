@@ -110,10 +110,10 @@ Inside `docs/images` you can find two memory card images. One has a couple of sa
 
 ## Switching/Creating Images
 On **PicoMemcard+** you can switch the active memory card image with the following inputs:
-* `START + SELECT + DPAD UP` will switch to the next image (e.g from `1.MCR` to `2.MCR`).
-* `START + SELECT + DPAD DOWN` will switch to the previous image (e.g from `1.MCR` to `0.MCR`).
+* `L1 + L2 + R1 + R2 + DPAD UP` will switch to the next image (e.g from `1.MCR` to `2.MCR`).
+* `L1 + L2 + R1 + R2 + DPAD DOWN` will switch to the previous image (e.g from `1.MCR` to `0.MCR`).
 
-Additionally you can create a new empty memory card image (and automatically switch to it) by pressing  `START + SELECT + TRIANGLE`.
+Additionally you can create a new empty memory card image (and automatically switch to it) by pressing  `L1 + L2 + R1 + R2 + TRIANGLE`.
 
 **Attention**: this method only works on PSX if the controller used to provide the input is plugged in the same slot as PicoMemcard (exactly under it). Using a controller from a different slot will have no effect.
 
@@ -124,7 +124,7 @@ Generally speaking, new data written to PicoMemcard (e.g. when you save) is perm
 * On Rapsbery Pi Pico the LED will be on when all changes have been saved, off otherwise.
 * On RP2040-Zero the LED will be solid green when all changes have been saved, red otherwise.
 
-Unlike **PicoMemcard+** that tries to write new changes as soon as possible, **PicoMemcard** will generally do it only after a period of inactivity (around 5 seconds). If you want to force **PicoMemcard** to immediately sync you can press `START + SELECT + TRIANGLE`.
+Unlike **PicoMemcard+** that tries to write new changes as soon as possible, **PicoMemcard** will generally do it only after a period of inactivity (around 5 seconds). If you want to force **PicoMemcard** to immediately sync you can press `L1 + L2 + R1 + R2 + TRIANGLE`.
 
 **Attention**: after you save your game, make sure to wait for the LED to be solid green before turning off the console otherwise you might lose your more recent progress!
 
