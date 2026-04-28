@@ -119,7 +119,7 @@ uint32_t flash_write_at(uint8_t* data, uint32_t size, uint32_t offset, uint8_t* 
 		lfs_t lfs;
 		lfs_file_t memcard;
 		if(LFS_ERR_OK == lfs_mount(&lfs, &LFS_CFG)) {
-			if(LFS_ERR_OK == lfs_file_open(&lfs, &memcard, file_name, LFS_O_RDWR)) {
+			if(LFS_ERR_OK == lfs_file_open(&lfs, &memcard, file_name, LFS_O_RDWR | LFS_O_APPEND | LFS_O_CREAT)) {
 				lfs_file_seek(&lfs, &memcard,  offset, LFS_SEEK_SET);
 				*written = lfs_file_write(&lfs, &memcard, data, size);
 				lfs_file_close(&lfs, &memcard);

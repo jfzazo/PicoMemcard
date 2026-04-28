@@ -345,6 +345,16 @@ _Noreturn int simulate_memory_card() {
 	if(status != MM_OK) {
 		status = memcard_manager_get(0, mc_file_name);	// revert to first mem card if failing to load previously loaded card
 		if(status != MM_OK) {
+		// If this is the first time the program runs and there is no MC image -> Create it
+		// Take into account that if a file is corrupted... we may want not to delete it.
+		if(status == MM_INDEX_OUT_OF_BOUNDS) {
+			if(memcard_manager_count_with_err_size() == 0) {
+				status = memcard_manager_create(mc_file_name);
+			} 
+		}
+	}
+
+	if(status != MM_OK) {
 			while(true) {
 				led_blink_error(status);
 				sleep_ms(1000);

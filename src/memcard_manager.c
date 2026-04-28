@@ -13,6 +13,7 @@ static const char memcard_file_ext[] = ".MCR";
 static const char memcard_lastmemcardindex_filename[] = "LastMemcardIndex.dat";
 
 size_t valid_images = 0;
+size_t images = 0;
 size_t cimage = 0;
 uint8_t* image_names;
 
@@ -48,6 +49,9 @@ void count_valid_images(uint8_t* filename, uint32_t fsize) {
 	if(is_image_valid(filename, fsize)) {
 		valid_images++;
 	}
+	if(is_name_valid(filename)) {
+		images++;
+	}
 }
 
 void set_images_names(uint8_t* filename, uint32_t fsize) {
@@ -80,9 +84,16 @@ bool memcard_manager_exist(uint8_t* filename) {
 
 uint32_t memcard_manager_count() {
 	valid_images = 0;
+	images = 0;
 	fs_manager.dir_read(count_valid_images);
 
 	return valid_images;
+}
+
+uint32_t memcard_manager_count_with_err_size() {
+	memcard_manager_count();
+
+	return images;
 }
 
 uint32_t memcard_manager_get(uint32_t index, uint8_t* out_filename) {
@@ -192,120 +203,123 @@ uint32_t memcard_manager_get_prev(uint8_t* filename, uint8_t* out_prevfile) {
 		return MM_NO_ENTRY;
 }
 
-// TODO: Adaptar. Esto solo funciona para FATFs
+#include "led.h"
 uint32_t memcard_manager_create(uint8_t* out_filename) {
 	if(!out_filename)
 		return MM_BAD_PARAM;
 
 	uint8_t name[MAX_MC_FILENAME_LEN + 1];
-	FIL memcard_image;
+	uint8_t memcard_n = memcard_manager_count_with_err_size();
+	int f_res;
+	
+	if(memcard_n<0||memcard_n>=MAX_MC_IMAGES) {
+		return MM_INDEX_OUT_OF_BOUNDS;
+	}
 
-	uint8_t memcard_n = 0;
-	FRESULT f_res;
-	do {
-		snprintf(name, MAX_MC_FILENAME_LEN + 1, "%d.MCR", memcard_n++); // Set name to %d.MCR
-		f_res = f_open(&memcard_image, name, FA_CREATE_NEW | FA_WRITE); // Open new file for writing
-	} while (f_res == FR_EXIST); // Repeat if file exists.
-
+	snprintf(name, sizeof(name), "%d.MCR", memcard_n+1);
 	strcpy(out_filename, name); // We have a valid name, copy it to out_filename
 
-	if(f_res == FR_OK) {
-		UINT bytes_written = 0;
-		uint8_t buffer[MC_SEC_SIZE];
-		uint8_t xor;
-		/* header frame (block 0, sec 0) */
-		buffer[0] = 'M';
-		buffer[1] = 'C';
-		xor = buffer[0] ^ buffer[1];
-		for(int i = 2; i < MC_SEC_SIZE - 1; i++) {
-			buffer[i] = 0;
-			xor = xor ^ buffer[i];
-		}
-		buffer[MC_SEC_SIZE - 1] = xor;
-		f_res = f_write(&memcard_image, buffer, MC_SEC_SIZE, &bytes_written);
+	uint32_t bytes_written = 0;
+	uint32_t total_bytes_written = 0;
+	uint8_t buffer [MC_SEC_SIZE];
+	uint8_t xor;
+	/* header frame (block 0, sec 0) */
+	buffer[0] = 'M';
+	buffer[1] = 'C';
+	xor = buffer[0] ^ buffer[1];
+	for(int i = 2; i < MC_SEC_SIZE - 1; i++) {
+		buffer[i] = 0;
+		xor = xor ^ buffer[i];
+	}
+	buffer[MC_SEC_SIZE - 1] = xor;
+
+	
+	led_output_new_mc();
+	f_res = fs_manager.write(buffer, MC_SEC_SIZE, out_filename, &bytes_written);
+	if(f_res != FR_OK || bytes_written != MC_SEC_SIZE) {
+		return MM_FILE_WRITE_ERR;
+	}
+	total_bytes_written+=bytes_written;
+	/* directory frames (block 0, sec 1..15) */
+	buffer[0] = 0xa0;	// free block
+	xor = buffer[0];
+	for(int i = 1; i < 8; i++) {
+		buffer[i] = 0;
+		xor = xor ^ buffer[i];
+	}
+	buffer[8] = buffer[9] = 0xff;	// no next block
+	xor = xor ^ buffer[8] ^ buffer[9];
+	for(int i = 10; i < MC_SEC_SIZE - 1; i++) {
+		buffer[i] = 0;
+		xor = xor ^ buffer[i];
+	}
+	buffer[MC_SEC_SIZE - 1] = xor;
+	led_output_new_mc();
+	for(int i = 0; i < 15; i++) {
+		f_res = fs_manager.write_at(buffer, MC_SEC_SIZE, MC_SEC_SIZE*(i+1), out_filename, &bytes_written);
 		if(f_res != FR_OK || bytes_written != MC_SEC_SIZE) {
-			f_close(&memcard_image);
 			return MM_FILE_WRITE_ERR;
 		}
-		/* directory frames (block 0, sec 1..15) */
-		buffer[0] = 0xa0;	// free block
-		xor = buffer[0];
-		for(int i = 1; i < 8; i++) {
-			buffer[i] = 0;
-			xor = xor ^ buffer[i];
-		}
-		buffer[8] = buffer[9] = 0xff;	// no next block
-		xor = xor ^ buffer[8] ^ buffer[9];
-		for(int i = 10; i < MC_SEC_SIZE - 1; i++) {
-			buffer[i] = 0;
-			xor = xor ^ buffer[i];
-		}
-		buffer[MC_SEC_SIZE - 1] = xor;
-		for(int i = 0; i < 15; i++) {
-			f_res = f_write(&memcard_image, buffer, MC_SEC_SIZE, &bytes_written);
-			if(f_res != FR_OK || bytes_written != MC_SEC_SIZE) {
-				f_close(&memcard_image);
-				return MM_FILE_WRITE_ERR;
-			}
-		}
-		/* broken sector list (block 0, sec 16..35) */
-		buffer[0] = buffer[1] = buffer[2] = buffer[3] = 0xff;	// no broken sector
-		xor = buffer[0] ^ buffer[1] ^ buffer[2] ^ buffer[3];
-		buffer[4] = buffer[5] = buffer[6] = buffer[7] = 0x00;	// 0 fill
-		xor = xor ^ buffer[4] ^ buffer[5] ^ buffer[6] ^ buffer[7];
-		buffer[8] = buffer[9] = 0xff;	// 1 fill
-		xor = xor ^ buffer[8] ^ buffer[9];
-		for(int i = 10; i < MC_SEC_SIZE - 1; i++) {
-			buffer[i] = 0x00;
-			xor = xor ^ buffer[i];
-		}
-		buffer[MC_SEC_SIZE - 1] = xor;
-		for(int i = 0; i < 20; i++) {
-			f_res = f_write(&memcard_image, buffer, MC_SEC_SIZE, &bytes_written);
-			if(f_res != FR_OK || bytes_written != MC_SEC_SIZE) {
-				f_close(&memcard_image);
-				return MM_FILE_WRITE_ERR;
-			}
-		}
-		/* broken sector replacement data (block 0, sec 36..55) and unused frames (block 0, sec 56..62) */
-		for(int i = 0; i < MC_SEC_SIZE; i++) {
-			buffer[i] = 0x00;
-		}
-		for(int i = 0; i < 27; i++) {
-			f_res = f_write(&memcard_image, buffer, MC_SEC_SIZE, &bytes_written);
-			if(f_res != FR_OK || bytes_written != MC_SEC_SIZE) {
-				f_close(&memcard_image);
-				return MM_FILE_WRITE_ERR;
-			}
-		}
-		/* test write sector (block 0, sec 63) */
-		buffer[0] = 'M';
-		buffer[1] = 'C';
-		xor = buffer[0] ^ buffer[1];
-		for(int i = 2; i < MC_SEC_SIZE - 1; i++) {
-			buffer[i] = 0;
-			xor = xor ^ buffer[i];
-		}
-		buffer[MC_SEC_SIZE - 1] = xor;
-		f_res = f_write(&memcard_image, buffer, MC_SEC_SIZE, &bytes_written);
+		total_bytes_written+=bytes_written;
+	}
+	/* broken sector list (block 0, sec 16..35) */
+	buffer[0] = buffer[1] = buffer[2] = buffer[3] = 0xff;	// no broken sector
+	xor = buffer[0] ^ buffer[1] ^ buffer[2] ^ buffer[3];
+	buffer[4] = buffer[5] = buffer[6] = buffer[7] = 0x00;	// 0 fill
+	xor = xor ^ buffer[4] ^ buffer[5] ^ buffer[6] ^ buffer[7];
+	buffer[8] = buffer[9] = 0xff;	// 1 fill
+	xor = xor ^ buffer[8] ^ buffer[9];
+	for(int i = 10; i < MC_SEC_SIZE - 1; i++) {
+		buffer[i] = 0x00;
+		xor = xor ^ buffer[i];
+	}
+	buffer[MC_SEC_SIZE - 1] = xor;
+	for(int i = 0; i < 20; i++) {
+		f_res = fs_manager.write_at(buffer, MC_SEC_SIZE, MC_SEC_SIZE*(i+16), out_filename, &bytes_written);
 		if(f_res != FR_OK || bytes_written != MC_SEC_SIZE) {
-			f_close(&memcard_image);
 			return MM_FILE_WRITE_ERR;
 		}
-		/* fill remaining 15 blocks with zeros */
-		for(int i = 0; i < MC_SEC_SIZE; i++) {
-			buffer[i] = 0;
+		total_bytes_written+=bytes_written;
+		if(i%16==0) {led_output_new_mc();}
+	}
+
+	/* broken sector replacement data (block 0, sec 36..55) and unused frames (block 0, sec 56..62) */
+	memset(buffer, 0, MC_SEC_SIZE);
+	
+	for(int i = 0; i < 27; i++) {
+		f_res = fs_manager.write_at(buffer, MC_SEC_SIZE, MC_SEC_SIZE*(i+36), out_filename, &bytes_written);
+		if(f_res != FR_OK || bytes_written != MC_SEC_SIZE) {
+			return MM_FILE_WRITE_ERR;
 		}
-		for(int i = 0; i < MC_SEC_COUNT - 64; i++) {	// 64 are the number of sectors written already (forming block 0)
-			f_res = f_write(&memcard_image, buffer, MC_SEC_SIZE, &bytes_written);
-			if(f_res != FR_OK || bytes_written != MC_SEC_SIZE) {
-				f_close(&memcard_image);
-				return MM_FILE_WRITE_ERR;
-			}
+		total_bytes_written+=bytes_written;
+		if(i%16==0) {led_output_new_mc();}
+	}
+
+	/* test write sector (block 0, sec 63) */
+	buffer[0] = 'M';
+	buffer[1] = 'C';
+	xor = buffer[0] ^ buffer[1];
+	for(int i = 2; i < MC_SEC_SIZE - 1; i++) {
+		buffer[i] = 0;
+		xor = xor ^ buffer[i];
+	}
+	buffer[MC_SEC_SIZE - 1] = xor;
+	
+	f_res = fs_manager.write_at(buffer, MC_SEC_SIZE, MC_SEC_SIZE*63, out_filename, &bytes_written);
+	if(f_res != FR_OK || bytes_written != MC_SEC_SIZE) {
+		return MM_FILE_WRITE_ERR;
+	}
+	total_bytes_written+=bytes_written;
+	/* fill remaining 15 blocks with zeros */
+	memset(buffer, 0, MC_SEC_SIZE);
+	for(int i = 0; i < MC_SEC_COUNT - 64; i++) {	// 64 are the number of sectors written already (forming block 0)
+		f_res = fs_manager.write_at(buffer, MC_SEC_SIZE, MC_SEC_SIZE*(i+64), out_filename, &bytes_written);
+		if(f_res != FR_OK || bytes_written != MC_SEC_SIZE) {
+			return MM_FILE_WRITE_ERR;
 		}
-		f_close(&memcard_image);
-	} else {
-		return MM_FILE_OPEN_ERR;
+		total_bytes_written+=bytes_written;
+	
+		if(i%16==0) {led_output_new_mc();}
 	}
 	update_prev_loaded_memcard_index(memcard_n - 1);
 	return MM_OK;

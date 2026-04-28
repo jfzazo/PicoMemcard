@@ -83,7 +83,7 @@ uint32_t sd_write_at(uint8_t* data, uint32_t size, uint32_t offset, uint8_t* fil
 	uint32_t status = !FR_OK;
 	FIL memcard;
 	if(data) {
-		if(FR_OK == f_open(&memcard, file_name, FA_READ | FA_WRITE)) {
+		if(FR_OK == f_open(&memcard, file_name, FA_OPEN_APPEND | FA_WRITE)) {
 			UINT bytes_written;
 			f_lseek(&memcard, offset);
 			status = f_write(&memcard, data, size, &bytes_written);

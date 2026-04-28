@@ -127,6 +127,13 @@ void handle_command(const char *cmd) {
         DBG_INFO("memory_card_import (status=%d)", status);
     } else if (strcmp(cmd, "sim") == 0) {
         simulate_memory_card();
+    } else if (strcmp(cmd, "new") == 0) {
+	    uint8_t name[MAX_MC_FILENAME_LEN + 1];
+        uint32_t status;
+        status = memcard_manager_create(name);
+        DBG_INFO("memcard_manager_create (status=%d) name =%s", status, name);
+    } else if (strcmp(cmd, "count") == 0) {
+        DBG_INFO("memcard_manager_count: %d", memcard_manager_count_with_err_size());
     } else if (strcmp(cmd, "help") == 0) {
         DBG_INFO("\nCommands:");
         DBG_INFO("  help     - show this message");
