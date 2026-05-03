@@ -163,7 +163,7 @@ uint32_t flash_write_at(uint8_t* data, uint32_t size, uint32_t offset, uint8_t* 
 	uint32_t status = !FR_OK;
 
 	if(data) {
-		if(size>=4096) { // Creation of a new MC. Block the system and perform the copy
+		if(size>MC_SEC_SIZE) { // Creation of a new MC. Block the system and perform the copy
 			status = __flash_write_at(data,size, offset, file_name, written);
 		} else {	// Small copy. Performed by the PSX. Cache the slots
 			*written = size; // How to actually test?

@@ -250,9 +250,8 @@ uint32_t memcard_manager_create(uint8_t* out_filename) {
 		xor = xor ^ cur_sector[i];
 	}
 	cur_sector[MC_SEC_SIZE - 1] = xor;
-	cur_sector += MC_SEC_SIZE;
 
-	for(int i = 0; i < 15; i++) {
+	for(int i = 0; i < 14; i++) {
 		memcpy(&(cur_sector[MC_SEC_SIZE*(i+1)]), cur_sector, MC_SEC_SIZE);
 	}
 	cur_sector += 15*MC_SEC_SIZE;
@@ -269,7 +268,7 @@ uint32_t memcard_manager_create(uint8_t* out_filename) {
 		xor = xor ^ cur_sector[i];
 	}
 	cur_sector[MC_SEC_SIZE - 1] = xor;
-	for(int i = 0; i < 20; i++) {
+	for(int i = 0; i < 19; i++) {
 		memcpy(&(cur_sector[MC_SEC_SIZE*(i+1)]), cur_sector, MC_SEC_SIZE);
 	}
 	cur_sector += 20*MC_SEC_SIZE;
