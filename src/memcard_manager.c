@@ -221,105 +221,93 @@ uint32_t memcard_manager_create(uint8_t* out_filename) {
 
 	uint32_t bytes_written = 0;
 	uint32_t total_bytes_written = 0;
-	uint8_t buffer [MC_SEC_SIZE];
+	uint8_t *buffer     = &(ram_disk[MC_SIZE]);
+	uint8_t *cur_sector = &(ram_disk[MC_SIZE]);
 	uint8_t xor;
+	/*********** Block 0 *************/
 	/* header frame (block 0, sec 0) */
-	buffer[0] = 'M';
-	buffer[1] = 'C';
-	xor = buffer[0] ^ buffer[1];
+	cur_sector[0] = 'M';
+	cur_sector[1] = 'C';
+	xor = cur_sector[0] ^ cur_sector[1];
 	for(int i = 2; i < MC_SEC_SIZE - 1; i++) {
-		buffer[i] = 0;
-		xor = xor ^ buffer[i];
+		cur_sector[i] = 0;
+		xor = xor ^ cur_sector[i];
 	}
-	buffer[MC_SEC_SIZE - 1] = xor;
+	cur_sector[MC_SEC_SIZE - 1] = xor;
+	cur_sector += MC_SEC_SIZE;
 
-	
-	led_output_new_mc();
-	f_res = fs_manager.write(buffer, MC_SEC_SIZE, out_filename, &bytes_written);
-	if(f_res != FR_OK || bytes_written != MC_SEC_SIZE) {
-		return MM_FILE_WRITE_ERR;
-	}
-	total_bytes_written+=bytes_written;
 	/* directory frames (block 0, sec 1..15) */
-	buffer[0] = 0xa0;	// free block
-	xor = buffer[0];
+	cur_sector[0] = 0xa0;	// free block
+	xor = cur_sector[0];
 	for(int i = 1; i < 8; i++) {
-		buffer[i] = 0;
-		xor = xor ^ buffer[i];
+		cur_sector[i] = 0;
+		xor = xor ^ cur_sector[i];
 	}
-	buffer[8] = buffer[9] = 0xff;	// no next block
-	xor = xor ^ buffer[8] ^ buffer[9];
+	cur_sector[8] = cur_sector[9] = 0xff;	// no next block
+	xor = xor ^ cur_sector[8] ^ cur_sector[9];
 	for(int i = 10; i < MC_SEC_SIZE - 1; i++) {
-		buffer[i] = 0;
-		xor = xor ^ buffer[i];
+		cur_sector[i] = 0;
+		xor = xor ^ cur_sector[i];
 	}
-	buffer[MC_SEC_SIZE - 1] = xor;
-	led_output_new_mc();
+	cur_sector[MC_SEC_SIZE - 1] = xor;
+	cur_sector += MC_SEC_SIZE;
+
 	for(int i = 0; i < 15; i++) {
-		f_res = fs_manager.write_at(buffer, MC_SEC_SIZE, MC_SEC_SIZE*(i+1), out_filename, &bytes_written);
-		if(f_res != FR_OK || bytes_written != MC_SEC_SIZE) {
-			return MM_FILE_WRITE_ERR;
-		}
-		total_bytes_written+=bytes_written;
+		memcpy(&(cur_sector[MC_SEC_SIZE*(i+1)]), cur_sector, MC_SEC_SIZE);
 	}
+	cur_sector += 15*MC_SEC_SIZE;
+
 	/* broken sector list (block 0, sec 16..35) */
-	buffer[0] = buffer[1] = buffer[2] = buffer[3] = 0xff;	// no broken sector
-	xor = buffer[0] ^ buffer[1] ^ buffer[2] ^ buffer[3];
-	buffer[4] = buffer[5] = buffer[6] = buffer[7] = 0x00;	// 0 fill
-	xor = xor ^ buffer[4] ^ buffer[5] ^ buffer[6] ^ buffer[7];
-	buffer[8] = buffer[9] = 0xff;	// 1 fill
-	xor = xor ^ buffer[8] ^ buffer[9];
+	cur_sector[0] = cur_sector[1] = cur_sector[2] = cur_sector[3] = 0xff;	// no broken sector
+	xor = cur_sector[0] ^ cur_sector[1] ^ cur_sector[2] ^ cur_sector[3];
+	cur_sector[4] = cur_sector[5] = cur_sector[6] = cur_sector[7] = 0x00;	// 0 fill
+	xor = xor ^ cur_sector[4] ^ cur_sector[5] ^ cur_sector[6] ^ cur_sector[7];
+	cur_sector[8] = cur_sector[9] = 0xff;	// 1 fill
+	xor = xor ^ cur_sector[8] ^ cur_sector[9];
 	for(int i = 10; i < MC_SEC_SIZE - 1; i++) {
-		buffer[i] = 0x00;
-		xor = xor ^ buffer[i];
+		cur_sector[i] = 0x00;
+		xor = xor ^ cur_sector[i];
 	}
-	buffer[MC_SEC_SIZE - 1] = xor;
+	cur_sector[MC_SEC_SIZE - 1] = xor;
 	for(int i = 0; i < 20; i++) {
-		f_res = fs_manager.write_at(buffer, MC_SEC_SIZE, MC_SEC_SIZE*(i+16), out_filename, &bytes_written);
-		if(f_res != FR_OK || bytes_written != MC_SEC_SIZE) {
-			return MM_FILE_WRITE_ERR;
-		}
-		total_bytes_written+=bytes_written;
-		if(i%16==0) {led_output_new_mc();}
+		memcpy(&(cur_sector[MC_SEC_SIZE*(i+1)]), cur_sector, MC_SEC_SIZE);
 	}
+	cur_sector += 20*MC_SEC_SIZE;
 
 	/* broken sector replacement data (block 0, sec 36..55) and unused frames (block 0, sec 56..62) */
-	memset(buffer, 0, MC_SEC_SIZE);
-	
-	for(int i = 0; i < 27; i++) {
-		f_res = fs_manager.write_at(buffer, MC_SEC_SIZE, MC_SEC_SIZE*(i+36), out_filename, &bytes_written);
-		if(f_res != FR_OK || bytes_written != MC_SEC_SIZE) {
-			return MM_FILE_WRITE_ERR;
-		}
-		total_bytes_written+=bytes_written;
-		if(i%16==0) {led_output_new_mc();}
-	}
+	memset(cur_sector, 0, 27*MC_SEC_SIZE);
+	cur_sector += 27*MC_SEC_SIZE;
 
 	/* test write sector (block 0, sec 63) */
-	buffer[0] = 'M';
-	buffer[1] = 'C';
-	xor = buffer[0] ^ buffer[1];
+	cur_sector[0] = 'M';
+	cur_sector[1] = 'C';
+	xor = cur_sector[0] ^ cur_sector[1];
 	for(int i = 2; i < MC_SEC_SIZE - 1; i++) {
-		buffer[i] = 0;
-		xor = xor ^ buffer[i];
+		cur_sector[i] = 0;
+		xor = xor ^ cur_sector[i];
 	}
-	buffer[MC_SEC_SIZE - 1] = xor;
+	cur_sector[MC_SEC_SIZE - 1] = xor;
 	
-	f_res = fs_manager.write_at(buffer, MC_SEC_SIZE, MC_SEC_SIZE*63, out_filename, &bytes_written);
-	if(f_res != FR_OK || bytes_written != MC_SEC_SIZE) {
+	f_res = fs_manager.write_at(buffer, MC_SLOT_SIZE, 0, out_filename, &bytes_written);
+	if(f_res != FR_OK || bytes_written != MC_SLOT_SIZE) {
 		return MM_FILE_WRITE_ERR;
 	}
 	total_bytes_written+=bytes_written;
+
+	/******* End of Block 0 **********/
+
+	/***** Block 1 - Block 15 ********/
+	cur_sector = buffer;
 	/* fill remaining 15 blocks with zeros */
-	memset(buffer, 0, MC_SEC_SIZE);
-	for(int i = 0; i < MC_SEC_COUNT - 64; i++) {	// 64 are the number of sectors written already (forming block 0)
-		f_res = fs_manager.write_at(buffer, MC_SEC_SIZE, MC_SEC_SIZE*(i+64), out_filename, &bytes_written);
-		if(f_res != FR_OK || bytes_written != MC_SEC_SIZE) {
+	memset(cur_sector, 0, MC_SLOT_SIZE);
+	for(int i = 1; i <= MC_SEC_COUNT/64 - 1; i++) {	// 64 are the number of sectors written already (forming block 0)
+		f_res = fs_manager.write_at(buffer, MC_SLOT_SIZE, i*MC_SLOT_SIZE, out_filename, &bytes_written);
+		if(f_res != FR_OK || bytes_written != MC_SLOT_SIZE) {
 			return MM_FILE_WRITE_ERR;
 		}
 		total_bytes_written+=bytes_written;
 	
-		if(i%16==0) {led_output_new_mc();}
+		if(i%4==0) {led_output_new_mc();}
 	}
 	update_prev_loaded_memcard_index(memcard_n - 1);
 	return MM_OK;

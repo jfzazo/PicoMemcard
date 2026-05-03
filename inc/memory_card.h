@@ -7,7 +7,8 @@
 
 #define MC_SEC_SIZE			128		// size of single sector in bytes
 #define MC_SEC_COUNT		1024	// number of sector in one memory card
-#define MC_SIZE				MC_SEC_SIZE * MC_SEC_COUNT		// size of memory card in bytes
+#define MC_SLOT_SIZE		MC_SEC_SIZE * 64		// size of an slot in the memory card
+#define MC_SIZE				MC_SLOT_SIZE * 16		// size of memory card in bytes
 #define MC_FLAG_BYTE_DEF	0x08	// bit 3 set = new memory card inserted
 
 #define MC_ID1 0x5A
