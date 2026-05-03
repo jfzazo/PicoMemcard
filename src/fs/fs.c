@@ -17,6 +17,7 @@ struct fs_manager_t fs_manager = {
     .read_block = sd_read_block,
     .write = sd_write,
     .write_at = sd_write_at,
+    .try_flush = NULL,
     .write_block = sd_write_block,
     .dir_read = sd_dir_read
 };
@@ -34,6 +35,7 @@ struct fs_manager_t fs_manager = {
     .read_block = flash_read_block,
     .write = flash_write,
     .write_at = flash_write_at,
+    .try_flush = flash_try_flush,
     .write_block = flash_write_block,
     .dir_read = flash_dir_read
 };

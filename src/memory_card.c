@@ -63,16 +63,14 @@ uint32_t memory_card_sync_sector(memory_card_t* mc, sector_t sector, uint8_t* fi
 	uint32_t status = MC_OK;
 	FIL memcard;
 	uint32_t bytes_written;
-	status = fs_manager.write_at(&mc->data[sector * MC_SEC_SIZE], MC_SEC_SIZE, (sector * MC_SEC_SIZE), file_name, &bytes_written);
+	status = fs_manager.write_at(memory_card_get_sector_ptr(mc, sector), MC_SEC_SIZE, (sector * MC_SEC_SIZE), file_name, &bytes_written);
 	if(FR_OK == status) {
 		if(MC_SEC_SIZE != bytes_written) {
 			status = MC_FILE_SIZE_ERR;
-		} else {
-			status = MC_FILE_WRITE_ERR;
 		}
 	} else {
-		status = MC_FILE_OPEN_ERR;
-	}
+		status = MC_FILE_WRITE_ERR;
+	}	
 
 	return status;
 }

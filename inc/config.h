@@ -2,9 +2,11 @@
 #define __CONFIG_H__
 
 #include "debug.h"
+#include <stdint.h>
 
 /* Alloc a giant block of 180KB */
-extern uint8_t ram_disk[180 * 1024] __attribute__((section(".ram")));
+#define SIZE_RAM_BUFFER 180 * 1024
+extern uint8_t ram_disk[SIZE_RAM_BUFFER] __attribute__((section(".ram"), aligned(4096)));
 
 
 /* Global configuration options for PicoMemcard */

@@ -63,6 +63,7 @@ extern "C" {
     uint32_t flash_write_at(uint8_t* data, uint32_t size, uint32_t offset, uint8_t* file_name, uint32_t *written);
     uint32_t flash_write_block(void *dev, uint8_t* buff, uint32_t sector, uint32_t count);
 
+    void flash_try_flush(uint8_t* file_name);
     void flash_dir_read(void (*callback)(unsigned char *filename, uint32_t size));
 #ifdef __cplusplus
 }

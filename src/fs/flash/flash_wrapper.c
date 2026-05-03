@@ -1,6 +1,9 @@
 #include <string.h>
 #include "debug.h"
+#include "config.h"
 #include "memory_card.h"
+#include "led.h"
+#include "pico/multicore.h"
 #include "pico/time.h"
 #include "fs/flash/flash_config.h"
 #include "fs/flash/ram_disk.h"
@@ -11,6 +14,12 @@
 static unsigned char initialized = 0;
 static bool import_lfs_completed = false;
 static uint8_t working_buffer[WORK_BUFF_SIZE] __attribute__((section(".ram")));
+
+static uint16_t out_of_sync = 0;
+static uint64_t last_written_time = 0;
+
+const uint64_t FLUSH_TIMEOUT_US = 3*1000000; // 3s
+
 
 static void lfs_init() {
 	lfs_t lfs;
@@ -111,22 +120,67 @@ uint32_t flash_write(uint8_t* data, uint32_t size, uint8_t* file_name, uint32_t 
 	return flash_write_at(data, size, 0, file_name, written);
 }
 
+bool timeout_elapsed() {
+    uint64_t now = time_us_64();
+    return (now - last_written_time) >= FLUSH_TIMEOUT_US;
+}
+
+static uint32_t __flash_write_at(uint8_t* data, uint32_t size, uint32_t offset, uint8_t* file_name, uint32_t *written) {
+	uint32_t status = !FR_OK;
+
+	lfs_t lfs;
+	lfs_file_t memcard;
+
+	if(LFS_ERR_OK == lfs_mount(&lfs, &LFS_CFG)) {
+		if(LFS_ERR_OK == lfs_file_open(&lfs, &memcard, file_name, LFS_O_RDWR | LFS_O_CREAT)) {
+			lfs_file_seek(&lfs, &memcard,  offset, LFS_SEEK_SET);
+			*written = lfs_file_write(&lfs, &memcard, data, size);
+			lfs_file_close(&lfs, &memcard);
+			status = FR_OK;
+		}
+		lfs_unmount(&lfs);
+	}
+	
+	return status;
+}
+
+void flash_try_flush(uint8_t* file_name) {
+	int i = 0;
+	if(timeout_elapsed() && out_of_sync) {
+		uint32_t written;
+		for(i=0;i<MC_SLOT_COUNT;i++) {
+			if(out_of_sync & (1<<i) != 0) {
+				led_output_sync_status(true);
+				__flash_write_at(ram_disk + i*MC_SLOT_SIZE, MC_SLOT_SIZE, i*MC_SLOT_SIZE, file_name, &written);
+				led_output_sync_status(false);
+			}
+		}
+		out_of_sync = 0;
+	}
+}
 
 uint32_t flash_write_at(uint8_t* data, uint32_t size, uint32_t offset, uint8_t* file_name, uint32_t *written) {
 	uint32_t status = !FR_OK;
 
 	if(data) {
-		lfs_t lfs;
-		lfs_file_t memcard;
-		if(LFS_ERR_OK == lfs_mount(&lfs, &LFS_CFG)) {
-			if(LFS_ERR_OK == lfs_file_open(&lfs, &memcard, file_name, LFS_O_RDWR | LFS_O_APPEND | LFS_O_CREAT)) {
-				lfs_file_seek(&lfs, &memcard,  offset, LFS_SEEK_SET);
-				*written = lfs_file_write(&lfs, &memcard, data, size);
-				lfs_file_close(&lfs, &memcard);
-				status = FR_OK;
+		if(size>=4096) { // Creation of a new MC. Block the system and perform the copy
+			status = __flash_write_at(data,size, offset, file_name, written);
+		} else {	// Small copy. Performed by the PSX. Cache the slots
+			*written = size; // How to actually test?
+			status = FR_OK;
+			last_written_time = time_us_64();
+
+			int diff = ((uint32_t)data - (uint32_t)ram_disk);
+			if(diff>=0 && diff<SIZE_RAM_BUFFER ) {   // We are writing data from ram_disk
+				int current_sector = offset / MC_SEC_SIZE;
+				int current_slot = current_sector / MC_SLOT_SEC_COUNT;
+				current_sector %= MC_SLOT_SEC_COUNT;
+				
+				out_of_sync |= 1<<current_slot;
+				
+				flash_try_flush(file_name);
 			}
-			lfs_unmount(&lfs);
-		} 
+		}
 	}
 
 	return status;

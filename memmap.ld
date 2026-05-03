@@ -240,10 +240,10 @@ SECTIONS
      *  we only need this to check if we have enough flash left.
      *  Avoiding allocating this section means that the resulting binary is much smaller
      */
-    .lfs (COPY) : {
-        . = ALIGN(4096);    /* align to flash sector */
+    .lfs (NOLOAD) : {
+        . = ALIGN(4096);
         __lfs_start = .;
-        KEEP (*(.lfs))
+        . = . + (384 * 4096);
         __lfs_end = .;
     } > FLASH
 

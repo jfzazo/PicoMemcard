@@ -216,6 +216,8 @@ void process_pad_cmd() {    /* during pad interaction never call SEND() only int
     switch(sw_status) {
         case L1 & L2 & R1 & R2 & UP:
         case L1 & L2 & R1 & R2 & RIGHT:
+        case START & SELECT & UP:  // The initial combination of the author. For me it wasn't easier with the L+R buttons
+                                // as the MC i used to have as a kid had that key binding
             request_next_mc = true;
             break;
         case L1 & L2 & R1 & R2 & DOWN:
@@ -260,9 +262,11 @@ void __time_critical_func(restart_pio_sm)(void) {
     pio_sm_clear_fifos(pio0, smDatReader);
     pio_sm_drain_tx_fifo(pio0, smDatWriter); // drain instead of clear, so that we empty the OSR
 
+    #ifdef MULTICORE
     // resetting and launching core1 here allows to perform the reset of the transaction (e.g. when PSX polls for new MC without completing the read)
     multicore_reset_core1();
     multicore_launch_core1(simulation_thread);
+    #endif
     pio_enable_sm_mask_in_sync(pio0, 1 << smCmdReader | 1 << smDatReader | 1 << smDatWriter);
 }
 
@@ -387,18 +391,29 @@ _Noreturn int simulate_memory_card() {
     /* SMs are automatically enabled on first SEL reset */
 
 	/* Launch memory card thread */
+    #ifdef MULTICORE
     printf("Starting simulation core...");
 	multicore_launch_core1(simulation_thread);
     printf("  done\n");
+    #endif
 
     /* Process sync/switch/creation requests */
 	while(true) {
+        #ifndef MULTICORE
+        uint8_t data;
+        while(read_byte(pio0, smCmdReader, &data)) {
+            process_cmd(data);
+        }
+        #endif
+
 		if(!queue_is_empty(&mc_sector_sync_queue)) {
-			led_output_sync_status(true);
+			// led_output_sync_status(true);
             queue_sync_step(&mc_sector_sync_queue, mc_file_name);
 		} else {
 			led_output_sync_status(false);
 		}
+        if(fs_manager.try_flush) fs_manager.try_flush(mc_file_name);
+
 		if(request_next_mc || request_prev_mc) {
 			if(request_next_mc && request_prev_mc) {
 				/* requested change in both directions, do nothing */
