@@ -216,7 +216,7 @@ uint32_t memcard_manager_create(uint8_t* out_filename) {
 		return MM_INDEX_OUT_OF_BOUNDS;
 	}
 
-	snprintf(name, sizeof(name), "%d.MCR", memcard_n+1);
+	snprintf(name, sizeof(name), "%d.MCR", memcard_n+1); // Names start at 1.MCR, 2.MCR, etc
 	strcpy(out_filename, name); // We have a valid name, copy it to out_filename
 
 	uint32_t bytes_written = 0;
@@ -308,6 +308,6 @@ uint32_t memcard_manager_create(uint8_t* out_filename) {
 	
 		if(i%4==0) {led_output_new_mc();}
 	}
-	update_prev_loaded_memcard_index(memcard_n - 1);
+	update_prev_loaded_memcard_index(memcard_n);
 	return MM_OK;
 }

@@ -122,7 +122,7 @@ uint32_t flash_write(uint8_t* data, uint32_t size, uint8_t* file_name, uint32_t 
 
 bool timeout_elapsed() {
     uint64_t now = time_us_64();
-    return (now - last_written_time) >= FLUSH_TIMEOUT_US;
+    return last_written_time == 0 ? false : (now - last_written_time) >= FLUSH_TIMEOUT_US;
 }
 
 static uint32_t __flash_write_at(uint8_t* data, uint32_t size, uint32_t offset, uint8_t* file_name, uint32_t *written) {
@@ -145,17 +145,23 @@ static uint32_t __flash_write_at(uint8_t* data, uint32_t size, uint32_t offset, 
 }
 
 void flash_try_flush(uint8_t* file_name) {
+	uint32_t status;
 	int i = 0;
+
 	if(timeout_elapsed() && out_of_sync) {
 		uint32_t written;
+		led_output_sync_status(true);
 		for(i=0;i<MC_SLOT_COUNT;i++) {
-			if(out_of_sync & (1<<i) != 0) {
-				led_output_sync_status(true);
+			if((out_of_sync & (1<<i)) != 0) {
 				__flash_write_at(ram_disk + i*MC_SLOT_SIZE, MC_SLOT_SIZE, i*MC_SLOT_SIZE, file_name, &written);
-				led_output_sync_status(false);
+				if(status!=FR_OK || written!=MC_SLOT_SIZE) {
+					while(true)
+						led_blink_error(status);
+				}
+				out_of_sync &= ~(1 << i);
 			}
 		}
-		out_of_sync = 0;
+		led_output_sync_status(false);	
 	}
 }
 
@@ -163,21 +169,21 @@ uint32_t flash_write_at(uint8_t* data, uint32_t size, uint32_t offset, uint8_t* 
 	uint32_t status = !FR_OK;
 
 	if(data) {
-		if(size>MC_SEC_SIZE) { // Creation of a new MC. Block the system and perform the copy
+		// Creation of a new MC. Block the system and perform the copy
+		if(size!=MC_SEC_SIZE) {
 			status = __flash_write_at(data,size, offset, file_name, written);
 		} else {	// Small copy. Performed by the PSX. Cache the slots
 			*written = size; // How to actually test?
 			status = FR_OK;
-			last_written_time = time_us_64();
 
 			int diff = ((uint32_t)data - (uint32_t)ram_disk);
 			if(diff>=0 && diff<SIZE_RAM_BUFFER ) {   // We are writing data from ram_disk
 				int current_sector = offset / MC_SEC_SIZE;
 				int current_slot = current_sector / MC_SLOT_SEC_COUNT;
 				current_sector %= MC_SLOT_SEC_COUNT;
-				
+
+				last_written_time = time_us_64();
 				out_of_sync |= 1<<current_slot;
-				
 				flash_try_flush(file_name);
 			}
 		}

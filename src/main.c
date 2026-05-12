@@ -127,6 +127,9 @@ void handle_command(const char *cmd) {
         DBG_INFO("memory_card_import (status=%d)", status);
     } else if (strcmp(cmd, "sim") == 0) {
         simulate_memory_card();
+    } else if (strcmp(cmd, "last") == 0) {
+        int last = memcard_manager_get_prev_loaded_memcard_index();
+        DBG_INFO("Last memcard: %d", last);
     } else if (strcmp(cmd, "new") == 0) {
 	    uint8_t name[MAX_MC_FILENAME_LEN + 1];
         uint32_t status;
