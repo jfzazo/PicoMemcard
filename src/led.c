@@ -5,14 +5,13 @@
 #include "hardware/adc.h"
 #ifdef PICO
 #include "pico/cyw43_arch.h"
+// #define LED_PIN 25
 #endif
 #ifdef RP2040ZERO
 #include "ws2812.pio.h"
+// #define LED_PIN 16
 #endif
 
-#ifdef PICO
-#define PICO_LED_PIN 25
-#endif
 
 static uint smWs2813;
 static uint offsetWs2813;
@@ -40,12 +39,14 @@ void led_init() {
       picoW = 0;
     }
   }
-  init_led(PICO_LED_PIN);
+  #endif
+  #if defined(PICO) || defined(RP2040PROMICRO)
+  init_led(LED_PIN);
   #endif
 	#ifdef RP2040ZERO
 	offsetWs2813 = pio_add_program(pio1, &ws2812_program);
 	smWs2813 = pio_claim_unused_sm(pio1, true);
-	ws2812_program_init(pio1, smWs2813, offsetWs2813, 16, 800000, true);
+	ws2812_program_init(pio1, smWs2813, offsetWs2813, PICO_DEFAULT_WS2812_PIN, 800000, true);
 	#endif
 }
 
@@ -57,8 +58,8 @@ void set_led_color(rgb_t *color) {
 }
 
 void led_output_sync_status(bool out_of_sync) {
-	#ifdef PICO
-	set_led(PICO_LED_PIN, !out_of_sync);
+	#if defined(PICO) || defined(RP2040PROMICRO)
+	set_led(LED_PIN, !out_of_sync);
 	#endif
 	#ifdef RP2040ZERO
 	if(out_of_sync) {
@@ -72,8 +73,8 @@ void led_output_sync_status(bool out_of_sync) {
 
 void led_blink_error(int amount) {
 	/* ensure led is off */
-	#ifdef PICO
-	set_led(PICO_LED_PIN, false);
+	#if defined(PICO) || defined(RP2040PROMICRO)
+	set_led(LED_PIN, false);
 	#endif
 	#ifdef RP2040ZERO
 	ws2812_put_rgb(0, 0, 0);
@@ -81,15 +82,15 @@ void led_blink_error(int amount) {
 	sleep_ms(500);
 	/* start blinking */
 	for(int i = 0; i < amount; ++i) {
-		#ifdef PICO
-		set_led(PICO_LED_PIN, true);
+		#if defined(PICO) || defined(RP2040PROMICRO)
+		set_led(LED_PIN, true);
 		#endif
 		#ifdef RP2040ZERO
 		ws2812_put_rgb(255, 0, 0);
 		#endif
 		sleep_ms(500);
-		#ifdef PICO
-		set_led(PICO_LED_PIN, false);
+		#if defined(PICO) || defined(RP2040PROMICRO)
+		set_led(LED_PIN, false);
 		#endif
 		#ifdef RP2040ZERO
 		ws2812_put_rgb(0, 0, 0);
@@ -99,12 +100,12 @@ void led_blink_error(int amount) {
 }
 
 void led_output_mc_change() {
-	#ifdef PICO
-	set_led(PICO_LED_PIN, false);
+	#if defined(PICO) || defined(RP2040PROMICRO)
+	set_led(LED_PIN, false);
 	sleep_ms(100);
-	set_led(PICO_LED_PIN, true);
+	set_led(LED_PIN, true);
 	sleep_ms(100);
-	set_led(PICO_LED_PIN, false);
+	set_led(LED_PIN, false);
 	sleep_ms(100);
 	#endif
 	#ifdef RP2040ZERO
@@ -115,13 +116,13 @@ void led_output_mc_change() {
 }
 
 void led_output_end_mc_list() {
-	#ifdef PICO
+	#if defined(PICO) || defined(RP2040PROMICRO)
 	for(int i = 0; i < 3; ++i) {
-		set_led(PICO_LED_PIN, false);
+		set_led(LED_PIN, false);
 		sleep_ms(100);
-		set_led(PICO_LED_PIN, true);
+		set_led(LED_PIN, true);
 		sleep_ms(100);
-		set_led(PICO_LED_PIN, false);
+		set_led(LED_PIN, false);
 		sleep_ms(100);
 	}
 	#endif
@@ -133,13 +134,13 @@ void led_output_end_mc_list() {
 }
 
 void led_output_new_mc() {
-	#ifdef PICO
+	#if defined(PICO) || defined(RP2040PROMICRO)
 	for(int i = 0; i < 2; ++i) {
-		set_led(PICO_LED_PIN, false);
+		set_led(LED_PIN, false);
 		sleep_ms(2);
-		set_led(PICO_LED_PIN, true);
+		set_led(LED_PIN, true);
 		sleep_ms(2);
-		set_led(PICO_LED_PIN, false);
+		set_led(LED_PIN, false);
 		sleep_ms(2);
 	}
 	#endif
@@ -189,12 +190,17 @@ void init_led(uint32_t pin) {
   }
 }
 
-#ifdef PICO
+#if defined(PICO) || defined(RP2040PROMICRO)
 void set_led(uint32_t pin, uint32_t level) {
+  #ifdef PICO
   if ((pin == 25) && is_pico_w()) {
     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, level);
-  } else {
+  } else 
+  #endif
+  #if defined(PICO) || defined(RP2040PROMICRO)
+  {
     gpio_put(pin, level);
   }
+  #endif
 }
 #endif

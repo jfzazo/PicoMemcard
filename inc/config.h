@@ -19,44 +19,18 @@ extern uint8_t ram_disk[SIZE_RAM_BUFFER] __attribute__((section(".ram"), aligned
 #ifdef USE_SDCARD
 #define MAX_MC_IMAGES	255					// maximum number of different mc images
 #else
+#ifdef USE_16MBROM
+#define MAX_MC_IMAGES	100
+#else
 #define MAX_MC_IMAGES	10
+#endif
 #endif
 
 /* Invert red and green. Uncomment this if the LED colours for your RP2040 Zero are incorrect. */
 // #define INVERT_RED_GREEN
 
-/* PSX Interface Pinout */
-#ifdef PICO                 // TODO remove/find way to include this into pio code
-	//#define PIN_DAT 5
-	//#define PIN_CMD PIN_DAT + 1		// must be immediately after PIN_DAT
-	//#define PIN_SEL PIN_CMD + 1		// must be immediately after PIN_CMD
-	//#define PIN_CLK PIN_SEL + 1		// must be immediately after PIN_SEL
-	//#define PIN_ACK 9
-#endif
-
-#ifdef RP2040ZERO           // TODO remove/find way to include this into pio code
-	// #define PIN_DAT 9
-	// #define PIN_CMD PIN_DAT + 1		// must be immediately after PIN_DAT
-	// #define PIN_SEL PIN_CMD + 1		// must be immediately after PIN_CMD
-	// #define PIN_CLK PIN_SEL + 1		// must be immediately after PIN_SEL
-	// #define PIN_ACK 13
-#endif
-
 /* SD Card Configuration */
 #define BLOCK_SIZE	512				// SD card communicate using only 512 block size for consistency
 #define BAUD_RATE	5000 * 1000
-#ifdef PICO
-	#define PIN_MISO	16
-	#define PIN_MOSI	19
-	#define PIN_SCK		18
-	#define PIN_SS		17
-#endif
-
-#ifdef RP2040ZERO
-	#define PIN_MISO	0
-	#define PIN_MOSI	3
-	#define PIN_SCK		2
-	#define PIN_SS		1
-#endif
 
 #endif
