@@ -10,7 +10,6 @@ extern uint32_t __lfs_start;
 // to the user.
 int lfs_flash_read(const struct lfs_config *c, lfs_block_t block, lfs_off_t off, void *buffer, lfs_size_t size) {
 	for(uint32_t i = 0; i < size; i++) {
-		//uint8_t temp = *((uint8_t *)&__lfs_start);
 		uint8_t temp = *((uint8_t*)(uint32_t)&__lfs_start + (block * LFS_BLOCK_SIZE + off + i));
 		((uint8_t*) buffer)[i] = temp;
 	}

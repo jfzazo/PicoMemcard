@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.13)
 # cmake -DUSE_SDCARD=ON -DUSE_SDCARD=OFF ...
 option(MULTICORE "Use Multicore capabilities" OFF)
-option(USE_SDCARD "Use SD Card design" OFF)
-option(USE_16MBROM "SPI Flash of 16MB" OFF)
+option(USE_SDCARD "Use SD Card design" ON)
+option(USE_16MBFLASH "SPI Flash of 16MB" OFF)
 
 # cmake -DRP2040_BOARD=promicro ..
-set(RP2040_BOARD "zero" CACHE STRING "Board type")
+set(RP2040_BOARD "pico" CACHE STRING "Board type")
 
 set_property(CACHE RP2040_BOARD PROPERTY STRINGS
     pico
@@ -18,14 +18,17 @@ set_property(CACHE RP2040_BOARD PROPERTY STRINGS
 set(DBG_LEVEL 2)
 
 
-if(USE_16MBROM)
+if(USE_16MBFLASH)
   message("16MB Flash")
 
   add_compile_definitions(
     PICO_FLASH_SIZE_BYTES=16777216
   )
 
-  add_definitions(-DUSE_16MBROM)
+  add_definitions(-DUSE_16MBFLASH)
+  set(FLASH_SIZE 16384k)
+else()
+  set(FLASH_SIZE 2048k)
 endif()
 
 set(PICO_PLATFORM rp2040)
@@ -128,7 +131,9 @@ else()
   message("Using the design without MicroSD")
 endif()
 
+configure_file(${CMAKE_SOURCE_DIR}/memmap.ld.in ${CMAKE_SOURCE_DIR}/memmap.ld @ONLY)
 pico_set_linker_script(PicoMemcard ${CMAKE_SOURCE_DIR}/memmap.ld)
+
 configure_file(${CMAKE_CURRENT_LIST_DIR}/psxSPI.pio.in ${CMAKE_CURRENT_LIST_DIR}/psxSPI.pio @ONLY)
 pico_generate_pio_header(PicoMemcard ${CMAKE_CURRENT_LIST_DIR}/psxSPI.pio)
 pico_generate_pio_header(PicoMemcard ${CMAKE_CURRENT_LIST_DIR}/ws2812.pio)
@@ -153,6 +158,7 @@ target_sources(PicoMemcard PUBLIC
     ${CMAKE_SOURCE_DIR}/src/msc_handler.c
     ${CMAKE_SOURCE_DIR}/src/usb_descriptors.c
     ${CMAKE_SOURCE_DIR}/src/fs/fs.c
+    ${CMAKE_SOURCE_DIR}/src/fs/sd/sd_disk.c
     ${CMAKE_SOURCE_DIR}/src/fs/sd/sd_config.c
     ${CMAKE_SOURCE_DIR}/src/fs/sd/sd_wrapper.c
     ${CMAKE_SOURCE_DIR}/src/fs/flash/ram_disk.c

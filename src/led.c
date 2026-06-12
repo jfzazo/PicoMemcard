@@ -5,11 +5,9 @@
 #include "hardware/adc.h"
 #ifdef PICO
 #include "pico/cyw43_arch.h"
-// #define LED_PIN 25
 #endif
 #ifdef RP2040ZERO
 #include "ws2812.pio.h"
-// #define LED_PIN 16
 #endif
 
 
@@ -197,10 +195,8 @@ void set_led(uint32_t pin, uint32_t level) {
     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, level);
   } else 
   #endif
-  #if defined(PICO) || defined(RP2040PROMICRO)
   {
     gpio_put(pin, level);
   }
-  #endif
 }
 #endif

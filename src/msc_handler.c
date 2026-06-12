@@ -3,6 +3,7 @@
 #include "config.h"
 #include "fs/sd/sd_config.h"
 #include "fs/fs.h"
+#include "diskio.h"
 
 #define VID "PicoMC"
 #define PID "Mass Storage"
@@ -64,14 +65,11 @@ bool tud_msc_start_stop_cb(uint8_t lun, uint8_t power_condition, bool start, boo
 /* callback invoked when received READ10 command */
 int32_t tud_msc_read10_cb(uint8_t lun, uint32_t lba, uint32_t offset, void* buffer, uint32_t bufsize)
 {
-	sd_card_t* p_sd = (sd_card_t*) fs_manager.get_by_num(lun);
-	if (!p_sd) return -1;							// not valid drive
-
 	if(bufsize != fs_manager.get_block_size(lun)) return -1;			// invalid transfer unit
 	if(lba < 0 || lba >= fs_manager.get_sectors(lun)) return -1;	// invalid sector
 	if(offset != 0) return -1;						// cannot read unaligned sectors
 
-	int status = fs_manager.read_block(p_sd, (uint8_t*) buffer, (uint64_t) lba, 1);
+	int status = disk_read(lun, (uint8_t*) buffer, (uint64_t) lba, 1);
 	return status ? -1 : bufsize;		// read failed?
 }
 
@@ -86,14 +84,11 @@ bool tud_msc_is_writable_cb (uint8_t lun)
 // Process data in buffer to disk's storage and return number of written bytes
 int32_t tud_msc_write10_cb(uint8_t lun, uint32_t lba, uint32_t offset, uint8_t* buffer, uint32_t bufsize)
 {
-	sd_card_t* p_sd = (sd_card_t*) fs_manager.get_by_num(lun);
-	if (!p_sd) return -1;							// not valid drive
-
 	if(lba < 0 || lba >= fs_manager.get_sectors(lun)) return -1;	// invalid sector
 	if(bufsize != fs_manager.get_block_size(lun)) return -1;			// invalid transfer unit
 	if(offset != 0) return -1;						// writes must be sector aligned
 
-	int status = fs_manager.write_block(p_sd, (uint8_t*) buffer, (uint64_t) lba, 1);
+	int status = disk_write(lun, (uint8_t*) buffer, (uint64_t) lba, 1);
 	return status ? -1 : bufsize;		// write failed?
 }
 

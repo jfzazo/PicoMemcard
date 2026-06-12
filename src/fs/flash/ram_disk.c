@@ -7,7 +7,7 @@
 #include "config.h"
 #include "debug.h"
 
-uint8_t ram_disk[DISK_BLOCK_NUM * DISK_BLOCK_SIZE] __attribute__((section(".ram")));
+uint8_t ram_disk[SIZE_RAM_BUFFER] __attribute__((section(".ram")));
 
 /* FatFS Functions */
 uint32_t RAM_disk_status() {
@@ -19,7 +19,6 @@ uint32_t RAM_disk_initialize() {
 }
 
 uint32_t RAM_disk_deinitialize() {
-	DBG_VERBOSE("RAM_disk_deinitialize");
 	return  RAM_disk_status();
 }
 

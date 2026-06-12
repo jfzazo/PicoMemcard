@@ -110,12 +110,6 @@ uint32_t flash_read(uint8_t* data, uint32_t *size, uint8_t* file_name, uint32_t 
 	return status;
 }
 
-uint32_t flash_read_block(void *dev, uint8_t* buff, uint32_t sector, uint32_t count) {
-	uint32_t status = RAM_disk_read(buff, sector, count);
-	if(status != RES_OK) return -1;
-	return 0;
-}
-
 uint32_t flash_write(uint8_t* data, uint32_t size, uint8_t* file_name, uint32_t *written) {
 	return flash_write_at(data, size, 0, file_name, written);
 }
@@ -190,12 +184,6 @@ uint32_t flash_write_at(uint8_t* data, uint32_t size, uint32_t offset, uint8_t* 
 	}
 
 	return status;
-}
-
-uint32_t flash_write_block(void *dev, uint8_t* buff, uint32_t sector, uint32_t count) {
-	uint32_t status = RAM_disk_write(buff, sector, count);
-
-	return status != RES_OK ? -1 : 0;
 }
 
 void flash_umount(uint8_t lun) {

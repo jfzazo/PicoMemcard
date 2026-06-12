@@ -14,11 +14,9 @@ struct fs_manager_t fs_manager = {
     .get_sectors = sd_get_sectors,
     .get_block_size = sd_get_block_size,
     .read = sd_read,
-    .read_block = sd_read_block,
     .write = sd_write,
     .write_at = sd_write_at,
     .try_flush = NULL,
-    .write_block = sd_write_block,
     .dir_read = sd_dir_read
 };
 #else
@@ -32,11 +30,9 @@ struct fs_manager_t fs_manager = {
     .get_sectors = flash_get_sectors,
     .get_block_size = flash_get_block_size,
     .read = flash_read,
-    .read_block = flash_read_block,
     .write = flash_write,
     .write_at = flash_write_at,
     .try_flush = flash_try_flush,
-    .write_block = flash_write_block,
     .dir_read = flash_dir_read
 };
 #endif

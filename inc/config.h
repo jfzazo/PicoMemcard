@@ -19,7 +19,7 @@ extern uint8_t ram_disk[SIZE_RAM_BUFFER] __attribute__((section(".ram"), aligned
 #ifdef USE_SDCARD
 #define MAX_MC_IMAGES	255					// maximum number of different mc images
 #else
-#ifdef USE_16MBROM
+#ifdef USE_16MBFLASH
 #define MAX_MC_IMAGES	100
 #else
 #define MAX_MC_IMAGES	10

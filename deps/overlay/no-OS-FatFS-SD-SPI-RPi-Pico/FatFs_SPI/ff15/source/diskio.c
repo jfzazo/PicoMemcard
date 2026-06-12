@@ -10,10 +10,7 @@
 #include "ff.h"			/* Obtains integer types */
 #include "diskio.h"		/* Declarations of disk functions */
 #include "fs/flash/ram_disk.h"
-
-/* Definitions of physical drive number for each drive */
-#define DEV_RAM		0	/* Example: Map Ramdisk to physical drive 0 */
-
+#include "fs/sd/sd_disk.h"
 
 /*-----------------------------------------------------------------------*/
 /* Get Drive Status                                                      */
@@ -23,19 +20,12 @@ DSTATUS disk_status (
 	BYTE pdrv		/* Physical drive nmuber to identify the drive */
 )
 {
-	DSTATUS stat;
-	int result;
-
-	switch (pdrv) {
-	case DEV_RAM :
-		result = RAM_disk_status();
-
-		// translate the reslut code here
-		stat = (DSTATUS) result;
-
-		return stat;
-	}
-	return STA_NOINIT;
+	return (DSTATUS) 
+		#ifdef USE_SDCARD
+			SD_disk_status();
+		#else
+			RAM_disk_status();
+		#endif
 }
 
 
@@ -43,24 +33,17 @@ DSTATUS disk_status (
 /*-----------------------------------------------------------------------*/
 /* Inidialize a Drive                                                    */
 /*-----------------------------------------------------------------------*/
-
+#include "led.h"
 DSTATUS disk_initialize (
 	BYTE pdrv				/* Physical drive nmuber to identify the drive */
 )
 {
-	DSTATUS stat;
-	int result;
-
-	switch (pdrv) {
-	case DEV_RAM :
-		result = RAM_disk_initialize();
-
-		// translate the reslut code here
-		stat = (DSTATUS) result;
-
-		return stat;
-	}
-	return STA_NOINIT;
+	return (DSTATUS) 
+		#ifdef USE_SDCARD
+			SD_disk_initialize();
+		#else
+			RAM_disk_initialize();
+		#endif
 }
 
 
@@ -76,22 +59,12 @@ DRESULT disk_read (
 	UINT count		/* Number of sectors to read */
 )
 {
-	DRESULT res;
-	int result;
-
-	switch (pdrv) {
-	case DEV_RAM :
-		// translate the arguments here
-
-		result = RAM_disk_read(buff, sector, count);
-
-		// translate the reslut code here
-		res = (DRESULT) result;
-
-		return res;
-	}
-
-	return RES_PARERR;
+	return (DRESULT) 
+		#ifdef USE_SDCARD
+			SD_disk_read(buff, sector, count);
+		#else
+			RAM_disk_read(buff, sector, count);
+		#endif
 }
 
 
@@ -109,22 +82,12 @@ DRESULT disk_write (
 	UINT count			/* Number of sectors to write */
 )
 {
-	DRESULT res;
-	int result;
-
-	switch (pdrv) {
-	case DEV_RAM :
-		// translate the arguments here
-
-		result = RAM_disk_write(buff, sector, count);
-
-		// translate the reslut code here
-		res = (DRESULT) result;
-
-		return res;
-	}
-
-	return RES_PARERR;
+	return (DRESULT) 
+		#ifdef USE_SDCARD
+			SD_disk_write(buff, sector, count);
+		#else
+			RAM_disk_write(buff, sector, count);
+		#endif
 }
 
 #endif
@@ -140,19 +103,10 @@ DRESULT disk_ioctl (
 	void *buff		/* Buffer to send/receive control data */
 )
 {
-	DRESULT res;
-	int result;
-
-	switch (pdrv) {
-	case DEV_RAM :
-
-		result = RAM_disk_ioctl(cmd, buff);
-
-		// translate the reslut code here
-		res = (DRESULT) result;
-
-		return res;
-	}
-
-	return RES_PARERR;
+	return (DRESULT) 
+		#ifdef USE_SDCARD
+			SD_disk_ioctl(cmd, buff);
+		#else
+			RAM_disk_ioctl(cmd, buff);
+		#endif
 }

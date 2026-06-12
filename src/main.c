@@ -107,15 +107,15 @@ void handle_command(const char *cmd) {
         sleep_ms(100); // allow flush
         reset_usb_boot(0, 0);
     } else if (strcmp(cmd, "ls") == 0) {
-        // DBG_INFO("%p", fs_manager.init);
-        // if(fs_manager.init) fs_manager.init(0);  - OK
 	    fs_manager.dir_read(print_files);
     } else if (strcmp(cmd, "mount") == 0) {
         tud_mount_cb();
     } else if (strcmp(cmd, "umount") == 0) {
         tud_umount_cb();
+    #ifndef USE_SDCARD
     } else if (strcmp(cmd, "format") == 0) {
         flash_format();
+    #endif
     } else if (strcmp(cmd, "mc") == 0) {
         uint8_t mc_file_name[MAX_MC_FILENAME_LEN + 1];
         memory_card_t mc;
